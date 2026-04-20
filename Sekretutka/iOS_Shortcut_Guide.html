@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iOS Shortcut — Секретутка + Siri</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #0f1117; color: #e0e0e0; }
+
+.header { background: linear-gradient(135deg, #1a1f2e, #252d3d); padding: 32px 40px; border-bottom: 1px solid #2d3748; }
+.header h1 { font-size: 22px; color: #fff; }
+.header p { color: #8a9bb5; font-size: 13px; margin-top: 6px; }
+
+.content { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+
+.step { display: flex; gap: 20px; margin-bottom: 32px; }
+.step-num {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  background: #7b9eff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px; color: #fff;
+}
+.step-body { flex: 1; }
+.step-title { font-size: 16px; color: #fff; font-weight: 600; margin-bottom: 8px; }
+.step-desc { font-size: 13.5px; color: #c9d4e8; line-height: 1.7; }
+
+.phone-block {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #2d3748;
+}
+.action-row:last-child { border-bottom: none; }
+.action-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.action-label { flex: 1; }
+.action-label .name { color: #e2e8f0; font-size: 13px; font-weight: 600; }
+.action-label .val { color: #8a9bb5; font-size: 12px; margin-top: 2px; }
+
+.icon-mic    { background: #c53030; }
+.icon-http   { background: #2b6cb0; }
+.icon-dict   { background: #276749; }
+.icon-speak  { background: #744210; }
+.icon-if     { background: #553c9a; }
+.icon-var    { background: #2c5282; }
+
+code { background: #1e2535; color: #f6c90e; padding: 2px 7px; border-radius: 4px; font-family: monospace; font-size: 12.5px; }
+pre {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 10px;
+  padding: 16px 20px;
+  font-family: monospace;
+  font-size: 12.5px;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.card {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 12px;
+}
+.card.yellow { border-left: 4px solid #f6e05e; }
+.card.green  { border-left: 4px solid #68d391; }
+.card.red    { border-left: 4px solid #f56565; }
+.card.blue   { border-left: 4px solid #63b3ed; }
+.card h4 { font-size: 13.5px; color: #e2e8f0; margin-bottom: 6px; }
+.card p  { font-size: 13px; color: #c9d4e8; line-height: 1.6; }
+
+.divider { border: none; border-top: 1px solid #2d3748; margin: 36px 0; }
+
+.badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; margin-right: 6px; }
+.badge-blue { background: rgba(99,179,237,.15); color: #63b3ed; }
+.badge-green { background: rgba(104,211,145,.15); color: #68d391; }
+
+.url-box {
+  background: #111827;
+  border: 2px dashed #4a5568;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: 12px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #f6c90e;
+  word-break: break-all;
+}
+
+h2 { font-size: 18px; color: #fff; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #2d3748; }
+h3 { font-size: 14px; color: #a0aec0; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📱 iOS Shortcut — Секретутка × Siri</h1>
+  <p>Пошаговая инструкция · Bangkok timezone · n8n webhook</p>
+</div>
+
+<div class="content">
+
+  <!-- PREREQ -->
+  <div class="card blue" style="margin-bottom: 36px;">
+    <h4>⚡ Прежде чем начать</h4>
+    <p>Убедись что воркфлоу <strong>Sekretutka_Siri_Gateway</strong> активирован в n8n и ты скопировала его webhook URL. Он выглядит так:</p>
+    <div class="url-box">https://ВАШ_N8N_ДОМЕН/webhook/siri-gateway</div>
+    <p style="margin-top: 10px; color: #8a9bb5; font-size: 12px;">Если n8n на localhost — для iPhone нужен публичный URL (ngrok, cloudflare tunnel или VPS).</p>
+  </div>
+
+  <h2>Часть 1 — Создаём Shortcut</h2>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Открой приложение «Команды» (Shortcuts)</div>
+      <div class="step-desc">На iPhone → найди приложение <strong>Команды</strong> (синяя иконка с двумя квадратами). Нажми <strong>«+»</strong> в правом верхнем углу → «Новая команда».</div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">Назови команду «Секретутка»</div>
+      <div class="step-desc">Нажми на <strong>«Переименовать»</strong> вверху → введи <code>Секретутка</code>. Это имя Siri будет слышать: «Привет Siri, Секретутка».</div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">Добавь действие: «Диктовать текст»</div>
+      <div class="step-desc">Нажми «Добавить действие» → в поиске напиши <code>Диктовать</code> → выбери <strong>«Диктовать текст»</strong>.</div>
+      <div class="phone-block">
+        <div class="action-row">
+          <div class="action-icon icon-mic">🎙</div>
+          <div class="action-label">
+            <div class="name">Диктовать текст</div>
+            <div class="val">Язык: Русский · Стоп: автоматически</div>
+          </div>
+        </div>
+      </div>
+      <div class="card yellow" style="margin-top: 10px;">
+        <h4>⚠️ Настройки диктовки</h4>
+        <p>Язык: <strong>Русский</strong><br>«Стоп после паузы»: включить (1–2 сек)<br>«Перефразировать»: выключить</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <div class="step-title">Добавь «Получить содержимое URL» (HTTP запрос)</div>
+      <div class="step-desc">Нажми «+» → найди <code>URL</code> → выбери <strong>«Получить содержимое URL»</strong>. Настрой так:</div>
+      <div class="phone-block">
+        <div class="action-row">
+          <div class="action-icon icon-http">🌐</div>
+          <div class="action-label">
+            <div class="name">Получить содержимое URL</div>
+            <div class="val">URL: https://ВАШ_N8N_ДОМЕН/webhook/siri-gateway</div>
+          </div>
+        </div>
+      </div>
+      <h3>Параметры запроса</h3>
+      <div class="phone-block">
+        <div class="action-row">
+          <div class="action-label"><div class="name">Метод</div><div class="val">POST</div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-label"><div class="name">Заголовки</div><div class="val">Content-Type: application/json</div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-label"><div class="name">Тело запроса</div><div class="val">JSON</div></div>
+        </div>
+        <div class="action-row">
+          <div class="action-label">
+            <div class="name">Ключ: <code>text</code></div>
+            <div class="val">Значение: <strong>«Продиктованный текст»</strong> (вставь переменную из шага 3)</div>
+          </div>
+        </div>
+      </div>
+      <div class="card blue" style="margin-top: 10px;">
+        <h4>💡 Как вставить переменную</h4>
+        <p>В поле «Значение» нажми на <strong>синюю переменную</strong> «Продиктованный текст» — это результат предыдущего шага с диктовкой. Если её нет в предложениях — нажми на <strong>«Содержимое буфера обмена»</strong> и выбери из списка «Продиктованный текст».</p>
+      </div>
+      <h3>Итоговый JSON тела</h3>
+      <pre>{ "text": [Продиктованный текст] }</pre>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <div class="step-title">Добавь «Получить словарное значение» (парсим ответ)</div>
+      <div class="step-desc">Нажми «+» → найди <code>Словарь</code> → выбери <strong>«Получить значение из словаря»</strong>.</div>
+      <div class="phone-block">
+        <div class="action-row">
+          <div class="action-icon icon-dict">📖</div>
+          <div class="action-label">
+            <div class="name">Получить значение из словаря</div>
+            <div class="val">Ключ: <code>response</code> · Из: «Содержимое URL» (шаг 4)</div>
+          </div>
+        </div>
+      </div>
+      <div class="card yellow" style="margin-top: 10px;">
+        <h4>⚠️ Важно</h4>
+        <p>Ключ — именно <code>response</code> (строчными). Это поле из JSON-ответа n8n:<br><code>{ "response": "Записала! Встреча добавлена на завтра." }</code></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <div class="step-title">Добавь «Произнести текст» (Siri говорит вслух)</div>
+      <div class="step-desc">Нажми «+» → найди <code>Произнести</code> → выбери <strong>«Произнести текст»</strong>.</div>
+      <div class="phone-block">
+        <div class="action-row">
+          <div class="action-icon icon-speak">🔊</div>
+          <div class="action-label">
+            <div class="name">Произнести текст</div>
+            <div class="val">Текст: «Словарное значение» (результат шага 5)</div>
+          </div>
+        </div>
+      </div>
+      <div class="card blue" style="margin-top: 10px;">
+        <h4>💡 Настройки голоса</h4>
+        <p>Скорость: 0.5 (комфортно)<br>Голос: Milena (русский) или Katerina<br>«Ждать завершения»: включить</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Часть 2 — Итоговая схема Shortcut</h2>
+  <div class="phone-block">
+    <div class="action-row">
+      <div class="action-icon icon-mic">🎙</div>
+      <div class="action-label">
+        <div class="name">1. Диктовать текст</div>
+        <div class="val">Язык: Русский → сохраняется как «Продиктованный текст»</div>
+      </div>
+    </div>
+    <div class="action-row">
+      <div class="action-icon icon-http">🌐</div>
+      <div class="action-label">
+        <div class="name">2. Получить содержимое URL</div>
+        <div class="val">POST · JSON · { "text": [Продиктованный текст] } → «Содержимое URL»</div>
+      </div>
+    </div>
+    <div class="action-row">
+      <div class="action-icon icon-dict">📖</div>
+      <div class="action-label">
+        <div class="name">3. Получить значение из словаря</div>
+        <div class="val">Ключ "response" из «Содержимого URL» → «Словарное значение»</div>
+      </div>
+    </div>
+    <div class="action-row">
+      <div class="action-icon icon-speak">🔊</div>
+      <div class="action-label">
+        <div class="name">4. Произнести текст</div>
+        <div class="val">«Словарное значение» · голос Milena · скорость 0.5</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Часть 3 — Добавить Siri-фразу</h2>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <div class="step-title">Привяжи к Siri</div>
+      <div class="step-desc">В команде нажми <strong>«Настройки»</strong> (иконка ⚙️ или кнопка вверху) → <strong>«Добавить к Siri»</strong> → запиши фразу: «Секретутка» или «Привет Секретутка».<br><br>После этого можно вызывать так:</div>
+      <div class="card green" style="margin-top: 12px;">
+        <h4>🗣 Как использовать</h4>
+        <p>«Привет Siri, Секретутка» — Siri запустит команду, откроется диктовка. Говори, например:<br><br>
+        <strong>«Запиши задачу — встреча с клиентом завтра в 14:00»</strong><br>
+        <strong>«Записала воду»</strong><br>
+        <strong>«Потратила 200 бат на такси»</strong><br>
+        <strong>«Какие у меня задачи на сегодня?»</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2>Часть 4 — Проверка и отладка</h2>
+
+  <div class="card yellow">
+    <h4>⚠️ Если Siri не отвечает или ответ пустой</h4>
+    <p>1. Проверь что n8n воркфлоу <strong>Sekretutka_Siri_Gateway</strong> активен (зелёный)<br>
+    2. Проверь URL вебхука — он должен быть публичным (не localhost)<br>
+    3. Запусти воркфлоу вручную через Postman или curl:
+    </p>
+    <pre>curl -X POST https://ВАШ_N8N_ДОМЕН/webhook/siri-gateway \
+  -H "Content-Type: application/json" \
+  -d '{"text": "тест"}'</pre>
+    <p style="margin-top: 8px;">Ожидаемый ответ: <code>{"response": "...", "full_response": "..."}</code></p>
+  </div>
+
+  <div class="card red" style="margin-top: 16px;">
+    <h4>🔴 Частая проблема: n8n на домашнем сервере</h4>
+    <p>iPhone не достучится до <code>localhost</code> или локальной сети напрямую. Решения:<br>
+    — <strong>Ngrok</strong>: бесплатный туннель, команда <code>ngrok http 5678</code><br>
+    — <strong>Cloudflare Tunnel</strong>: стабильнее ngrok, бесплатно<br>
+    — <strong>VPS</strong>: задеплоить n8n на DigitalOcean / Hetzner / Contabo</p>
+  </div>
+
+  <div class="card green" style="margin-top: 16px;">
+    <h4>✅ Всё работает — как звучит идеальный диалог</h4>
+    <p>
+    <strong>Ты:</strong> «Привет Siri, Секретутка»<br>
+    <strong>Siri:</strong> [запускает диктовку]<br>
+    <strong>Ты:</strong> «Записала воду»<br>
+    <strong>Пауза ~3 сек</strong> (n8n обрабатывает)<br>
+    <strong>Siri:</strong> «Плюс десять XP. Стакан воды засчитан.»
+    </p>
+  </div>
+
+  <hr class="divider">
+
+  <div style="text-align: center; color: #4a5568; font-size: 12px; padding: 20px 0;">
+    Sekretutka iOS Guide · Апрель 2026
+  </div>
+
+</div>
+</body>
+</html>

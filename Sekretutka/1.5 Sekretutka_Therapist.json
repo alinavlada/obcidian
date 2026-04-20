@@ -1,0 +1,702 @@
+{
+  "name": "1.5 Sekretutka_Therapist",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "mode"
+            },
+            {
+              "name": "raw_text"
+            },
+            {
+              "name": "user_id"
+            },
+            {
+              "name": "session_id"
+            },
+            {
+              "name": "engine_payload",
+              "type": "any"
+            },
+            {
+              "name": "trigger_reason"
+            },
+            {
+              "name": "rule_change_request"
+            },
+            {
+              "name": "target_rule_ids",
+              "type": "any"
+            },
+            {
+              "name": "chat_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        300
+      ],
+      "id": "56005bf9-1703-41a4-9fd7-074f9647b1fc",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\nconst clean = (value) => String(value ?? '').trim();\nconst upper = (value) => clean(value).toUpperCase();\nconst nowBkk = $now.setZone('Asia/Bangkok');\nconst explicitMode = upper(input.mode || '');\nconst allowed = new Set(['DISCUSSION','FINAL','LEVEL_UP_INTERVIEW','FIVE_FAILURES_ANALYSIS','BASE_RULE_REFRAME']);\nconst triggerReason = upper(input.trigger_reason || input.reason || '');\nconst rawText = clean(input.raw_text || input.message || '');\nconst insightPhrases = [/я\\s+понял[аи]?/i,/ага/i,/это\\s+оно/i,/совпада/i,/инсайт/i,/теперь\\s+ясно/i,/точно/i];\nlet mode = allowed.has(explicitMode) ? explicitMode : '';\nif (!mode) {\n  if (triggerReason.includes('LEVEL_READY_REACHED')) mode = 'LEVEL_UP_INTERVIEW';\n  else if (triggerReason.includes('THERAPIST_REQUIRED') || triggerReason.includes('5_FAIL') || triggerReason.includes('FIVE_FAILURES')) mode = 'FIVE_FAILURES_ANALYSIS';\n  else if (input.rule_change_request || input.target_rule_ids) mode = 'BASE_RULE_REFRAME';\n  else if (insightPhrases.some((re) => re.test(rawText))) mode = 'FINAL';\n  else mode = 'DISCUSSION';\n}\nconst parseArray = (value) => {\n  if (Array.isArray(value)) return value.map((v) => clean(v)).filter(Boolean);\n  const s = clean(value);\n  if (!s) return [];\n  try {\n    const parsed = JSON.parse(s);\n    if (Array.isArray(parsed)) return parsed.map((v) => clean(v)).filter(Boolean);\n  } catch (e) {}\n  return s.split(',').map((v) => clean(v)).filter(Boolean);\n};\nreturn [{ json: {\n  mode,\n  raw_text: rawText,\n  user_id: clean(input.user_id || input.chat_id || '145771888'),\n  chat_id: clean(input.chat_id || input.user_id || '145771888'),\n  session_id: clean(input.session_id || `${nowBkk.toMillis()}`),\n  trigger_reason: clean(input.trigger_reason || input.reason || ''),\n  engine_payload: input.engine_payload || {},\n  rule_change_request: clean(input.rule_change_request || ''),\n  target_rule_ids: parseArray(input.target_rule_ids),\n  now_ts: nowBkk.toFormat('yyyy-MM-dd HH:mm:ss'),\n  today_date: nowBkk.toFormat('yyyy-MM-dd'),\n  timezone: 'Asia/Bangkok'\n} }];"
+      },
+      "id": "1c6d0302-536d-436a-b52c-6cfd3708f6a9",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=PROFILE_GAME!A25:D42",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "ea75349e-5c3f-43b4-8711-5e12cb4ff881",
+      "name": "Read PROFILE_GAME Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=%27BELIEFS%27!A1:K200",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "0507e15a-1d82-48fd-a83a-f63f9e385219",
+      "name": "Read Recent BELIEFS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=GAME_RULES!B1:X1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "17648cc5-197d-432a-b95d-f407b2acb358",
+      "name": "Read GAME_RULES",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1180,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json || {};\nconst snapshotRaw = $('Read PROFILE_GAME Snapshot').first().json || {};\nconst beliefsRaw = $('Read Recent BELIEFS').first().json || {};\nconst rulesRaw = $('Read GAME_RULES').first().json || {};\n\nconst clean = (value) => String(value ?? '').trim();\nconst upper = (value) => clean(value).toUpperCase();\nconst toNumber = (value) => {\n  const raw = clean(value)\n    .replace(/฿/g, '')\n    .replace(/,/g, '')\n    .replace(/[()]/g, (m) => (m === '(' ? '-' : ''))\n    .replace(/[^\\d.-]/g, '');\n  if (!raw) return null;\n  const n = Number(raw);\n  return Number.isFinite(n) ? n : null;\n};\nconst parseBool = (value) => {\n  if (typeof value === 'boolean') return value;\n  const s = clean(value).toLowerCase();\n  if (['true', 'yes', '1'].includes(s)) return true;\n  if (['false', 'no', '0'].includes(s)) return false;\n  return null;\n};\nconst rowsFromBatch = (raw) => (((raw.valueRanges || [])[0] || {}).values) || [];\nconst tableFromRows = (rows, offset = 2) => {\n  if (!Array.isArray(rows) || !rows.length) return [];\n  const header = rows[0].map(clean);\n  return rows.slice(1).filter((row) => row.some((cell) => clean(cell))).map((row, idx) => {\n    const obj = { row_number: idx + offset };\n    header.forEach((key, i) => {\n      obj[key] = row[i] ?? '';\n    });\n    return obj;\n  });\n};\n\nconst snapshot = {};\nfor (const row of rowsFromBatch(snapshotRaw)) {\n  const leftKey = clean(row[0]);\n  const leftVal = clean(row[1]);\n  const rightKey = clean(row[2]);\n  const rightVal = clean(row[3]);\n  if (leftKey) snapshot[leftKey] = leftVal;\n  if (rightKey) snapshot[rightKey] = rightVal;\n}\n\nconst beliefRows = tableFromRows(rowsFromBatch(beliefsRaw), 2);\nconst ruleRows = tableFromRows(rowsFromBatch(rulesRaw), 2).filter((r) => parseBool(r.ACTIVE) !== false);\nconst targetRuleIds = Array.isArray(ctx.target_rule_ids) ? ctx.target_rule_ids : [];\n\nconst cycleDay = toNumber(snapshot.CYCLE_DAY) ?? toNumber(snapshot.Cycle_Day) ?? toNumber(ctx.engine_payload?.cycle_day) ?? 0;\nconst hp = toNumber(snapshot.HP_CURRENT) ?? toNumber(ctx.engine_payload?.hp_current) ?? toNumber(ctx.engine_payload?.hp) ?? 0;\nconst attemptId = clean(snapshot.ACTIVE_ATTEMPT_ID || ctx.engine_payload?.active_attempt_id || '');\nconst stage = clean(snapshot.PLAYER_STAGE || ctx.engine_payload?.stage || 'EARLY');\nconst levelName = clean(snapshot.LEVEL_NAME || '');\nconst activeBossName = clean(snapshot.BOSS_NAME || ctx.engine_payload?.boss_name || '');\n\nlet phaseName = '';\nif (cycleDay >= 1 && cycleDay <= 5) phaseName = 'Зима';\nelse if (cycleDay >= 6 && cycleDay <= 12) phaseName = 'Весна';\nelse if (cycleDay >= 13 && cycleDay <= 15) phaseName = 'Лето';\nelse if (cycleDay >= 16 && cycleDay <= 28) phaseName = 'Осень';\nconst phaseDay = cycleDay ? `${cycleDay} — ${phaseName || 'Фаза не определена'}` : '';\n\nconst recentBeliefs = beliefRows\n  .filter((row) => clean(row.New_Insight || row['New_Insight']))\n  .slice(-3)\n  .reverse()\n  .map((row) => ({\n    date: clean(row.Date),\n    trigger: clean(row.Trigger),\n    old_belief: clean(row.Old_Belief),\n    new_insight: clean(row.New_Insight),\n    action_step: clean(row.Action_Step),\n  }));\n\nconst baseRuleIds = new Set([\n  'fail_threshold',\n  'fail_penalty_xp_gold',\n  'stuck_rule',\n  'resource_model_xp_gold',\n  'resource_model_hp',\n  'resource_model_xp_total',\n  'energy_rule_2_of_3',\n  'hp_lt_50',\n  'hp_lt_30',\n  'recovery_risk_rule',\n  'final_level_up',\n]);\n\nconst relevantRules = ruleRows\n  .filter((row) => {\n    const id = clean(row.ID_NAME);\n    if (ctx.mode !== 'BASE_RULE_REFRAME') return false;\n    if (targetRuleIds.length) return targetRuleIds.includes(id);\n    return baseRuleIds.has(id) || upper(row.TYPE).includes('BASE_RULE') || clean(row.NOTES).includes('BASE_RULE');\n  })\n  .map((row) => ({\n    row_number: row.row_number,\n    id_name: clean(row.ID_NAME),\n    rule_group: clean(row.RULE_GROUP),\n    type: clean(row.TYPE),\n    rpg_name: clean(row.RPG_NAME),\n    track: clean(row.TRACK),\n    stage_scope: clean(row.STAGE_SCOPE),\n    level_scope: clean(row.LEVEL_SCOPE),\n    attempt_scope: clean(row.ATTEMPT_SCOPE),\n    value: clean(row.VALUE),\n    resource_type: clean(row.RESOURCE_TYPE),\n    target_value: clean(row.TARGET_VALUE),\n    period: clean(row.PERIOD),\n    target_json: clean(row.TARGET_JSON),\n    effect: clean(row.EFFECT),\n    effect_target: clean(row.EFFECT_TARGET),\n    trigger_json: clean(row.TRIGGER_JSON),\n    flavor_text: clean(row.FLAVOR_TEXT),\n    desc: clean(row.DESC),\n    source: clean(row.SOURCE),\n    sort_order: clean(row.SORT_ORDER),\n    notes: clean(row.NOTES),\n  }));\n\nconst userPrompt = [\n  `MODE: ${ctx.mode}`,\n  `RAW_TEXT: ${ctx.raw_text || ''}`,\n  `TRIGGER_REASON: ${ctx.trigger_reason || ''}`,\n  `PHASE_DAY: ${phaseDay}`,\n  `HP: ${hp}`,\n  `ATTEMPT_ID: ${attemptId}`,\n  `STAGE: ${stage}`,\n  `LEVEL_NAME: ${levelName}`,\n  `ENGINE_PAYLOAD: ${JSON.stringify(ctx.engine_payload || {})}`,\n  `RECENT_BELIEFS: ${JSON.stringify(recentBeliefs)}`,\n  `RULE_CHANGE_REQUEST: ${ctx.rule_change_request || ''}`,\n  `TARGET_RULE_IDS: ${JSON.stringify(targetRuleIds)}`,\n  `RELEVANT_BASE_RULES: ${JSON.stringify(relevantRules)}`,\n  'Ответь только JSON-объектом по правилам system prompt.',\n].join('\\n');\n\nreturn [\n  {\n    json: {\n      ...ctx,\n      cycle_day: cycleDay,\n      current_hp: hp,\n      phase_day: phaseDay,\n      attempt_id: attemptId,\n      stage,\n      level_name: levelName,\n      recent_beliefs: recentBeliefs,\n      relevant_rules: relevantRules,\n      active_boss_name: activeBossName,\n      ai_input: userPrompt,\n    },\n  },\n];\n"
+      },
+      "id": "ff3955ca-1705-4c96-bb73-b9418feefed2",
+      "name": "Build Compact Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.ai_input }}",
+        "options": {
+          "systemMessage": "Ты — Therapist Core системы Sekretutka. Отвечай только одним JSON-объектом, без markdown и без пояснений.\n\nПравила:\n- Не упоминай таблицы, workflow, JSON schema, системные поля.\n- Не давай банальные советы вроде \"просто начни\".\n- Один шаг, один вопрос, одна терапевтическая развилка за раз.\n- Учитывай cycle_day и hp.\n- Если hp < 30: коротко, мягко, без длинной арки, action_step только восстановительный.\n\nРежимы:\n1. DISCUSSION\n- Цель: раскопка, один глубокий вопрос или мягкое отражение.\n- Заполняй: status=\"discussion\", trigger, category, method, old_belief, summary_for_user.\n- Оставляй пустыми: new_insight, story_text, action_step.\n- hp_cost = 0 или 5.\n\n2. FINAL\n- Цель: кристаллизация подтвержденного инсайта.\n- Заполняй: status=\"final\", trigger, category, method, old_belief, new_insight, story_text, action_step, summary_for_user, hp_cost.\n- story_text короткий, метафоричный, до 150 знаков.\n- action_step один, конкретный.\n\n3. LEVEL_UP_INTERVIEW\n- Если пользователь еще не дал содержательные ответы, верни outcome=\"PENDING\" и 2-3 вопроса в summary_for_user.\n- Если ответы содержательные, верни outcome=\"APPROVED\" или \"HELD\" и короткое summary_for_user.\n- status=\"level_up_interview\".\n\n4. FIVE_FAILURES_ANALYSIS\n- Верни status=\"five_failures_analysis\".\n- outcome одно из KEEP, ADJUST, REPLACE.\n- Дай reason и optional new_target_json.\n- summary_for_user короткий и ясный.\n\n5. BASE_RULE_REFRAME\n- Используй только для базовых правил.\n- Если данных недостаточно: outcome=\"PENDING\" и один уточняющий вопрос в summary_for_user.\n- Если рефрейм успешен: outcome=\"APPROVED\" и approved_patch как массив объектов.\n- Каждый patch object: {\"rule_id\":\"...\",\"value\":\"...\",\"target_value\":\"...\",\"period\":\"...\",\"target_json\":{},\"desc\":\"...\",\"notes\":\"...\"}\n- status=\"base_rule_reframe\".\n\nДопустимые category: Деньги, Реализация, Тело, Отношения, Идентичность, Система.\nДопустимые method: Master Kit, Psychodrama, Narrative, Reflection, Reframe.\n\nВсегда возвращай JSON с полями:\n{\n  \"status\": \"discussion|final|level_up_interview|five_failures_analysis|base_rule_reframe\",\n  \"trigger\": \"\",\n  \"category\": \"\",\n  \"method\": \"\",\n  \"old_belief\": \"\",\n  \"new_insight\": \"\",\n  \"story_text\": \"\",\n  \"action_step\": \"\",\n  \"summary_for_user\": \"\",\n  \"hp_cost\": 0,\n  \"phase_day\": \"\",\n  \"outcome\": \"\",\n  \"reason\": \"\",\n  \"new_target_json\": {},\n  \"approved_patch\": []\n}\n"
+        }
+      },
+      "id": "c782ae62-1f47-4432-9136-83221ad9033c",
+      "name": "AI Therapist Core",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "c5ef7151-c3b0-4777-b32a-8c45ccf875ca",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1640,
+        520
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let text = $json.output || $json.text || JSON.stringify($json);\nconst ctx = $('Build Compact Context').first().json || {};\nif (typeof text === 'string') {\n  const match = text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/);\n  if (match) text = match[1];\n  text = String(text).replace(/```json/g, '').replace(/```/g, '').trim();\n}\nconst allowed = new Set(['discussion','final','level_up_interview','five_failures_analysis','base_rule_reframe']);\ntry {\n  const parsed = JSON.parse(text);\n  parsed.status = String(parsed.status || ctx.mode || 'discussion').toLowerCase();\n  if (!allowed.has(parsed.status)) parsed.status = String(ctx.mode || 'DISCUSSION').toLowerCase();\n  parsed.trigger = String(parsed.trigger || ctx.raw_text || '').trim();\n  parsed.category = String(parsed.category || '').trim();\n  parsed.method = String(parsed.method || '').trim();\n  parsed.old_belief = String(parsed.old_belief || '').trim();\n  parsed.new_insight = String(parsed.new_insight || '').trim();\n  parsed.story_text = String(parsed.story_text || '').trim();\n  parsed.action_step = String(parsed.action_step || '').trim();\n  parsed.summary_for_user = String(parsed.summary_for_user || '').trim();\n  parsed.phase_day = String(parsed.phase_day || ctx.phase_day || '').trim();\n  parsed.outcome = String(parsed.outcome || '').trim().toUpperCase();\n  parsed.reason = String(parsed.reason || '').trim();\n  parsed.new_target_json = parsed.new_target_json && typeof parsed.new_target_json === 'object' ? parsed.new_target_json : {};\n  parsed.approved_patch = Array.isArray(parsed.approved_patch) ? parsed.approved_patch : [];\n  const hp = Number(parsed.hp_cost);\n  parsed.hp_cost = Number.isFinite(hp) ? Math.max(0, hp) : (parsed.status === 'final' ? 5 : 0);\n  return [{ json: { ...ctx, parsed_response: parsed, ok: true } }];\n} catch (e) {\n  return [{ json: {\n    ...ctx,\n    ok: false,\n    parsed_response: {\n      status: String(ctx.mode || 'DISCUSSION').toLowerCase(),\n      trigger: ctx.raw_text || '',\n      category: '',\n      method: 'Reflection',\n      old_belief: '',\n      new_insight: '',\n      story_text: '',\n      action_step: '',\n      summary_for_user: 'Произошла техническая ошибка. Попробуй сформулировать это еще раз одним сообщением.',\n      phase_day: ctx.phase_day || '',\n      outcome: '',\n      reason: 'invalid_json',\n      new_target_json: {},\n      approved_patch: [],\n      hp_cost: 0,\n    },\n    raw_model_output: text,\n  } }];\n}"
+      },
+      "id": "5d784f5e-b423-46c4-93d3-31d9479e9bbe",
+      "name": "Parse + Validate JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json || {};\nconst parsed = ctx.parsed_response || {};\nconst relevantRules = Array.isArray(ctx.relevant_rules) ? ctx.relevant_rules : [];\nconst clean = (value) => String(value ?? '').trim();\nconst safeJsonString = (value) => {\n  try {\n    return JSON.stringify(value || {});\n  } catch (e) {\n    return '{}';\n  }\n};\nconst nowTs = clean(ctx.now_ts);\nconst today = clean(ctx.today_date);\nconst attemptId = clean(ctx.attempt_id || ctx.engine_payload?.active_attempt_id || '');\nconst stage = clean(ctx.stage || ctx.engine_payload?.stage || 'EARLY');\nconst levelName = clean(ctx.level_name || '1');\nconst ruleMap = new Map(relevantRules.map((rule) => [clean(rule.id_name), rule]));\nconst approvedRuleIds = [];\nconst beliefRows = [];\nconst gameLogRows = [];\nconst ruleDeactivateData = [];\nconst ruleAppendRows = [];\n\nconst beliefRow = [\n  nowTs,\n  clean(parsed.phase_day),\n  clean(ctx.raw_text),\n  clean(parsed.trigger),\n  clean(parsed.category),\n  clean(parsed.method),\n  clean(parsed.old_belief),\n  clean(parsed.new_insight),\n  clean(parsed.action_step),\n  clean(parsed.hp_cost),\n  clean(parsed.story_text),\n];\n\nconst logRow = ({\n  event_type,\n  entity_group,\n  entity_id = '',\n  entity_name = '',\n  track = '',\n  status = '',\n  value = '',\n  resource_type = '',\n  delta = '',\n  period = '',\n  date_ref = today,\n  stage_at_time = stage,\n  level_at_time = levelName,\n  attempt_id = attemptId,\n  context_json = '',\n  comment = '',\n}) => [\n  nowTs,\n  event_type,\n  'THERAPIST',\n  entity_group,\n  entity_id,\n  entity_name,\n  track,\n  status,\n  value,\n  resource_type,\n  delta,\n  period,\n  date_ref,\n  stage_at_time,\n  level_at_time,\n  attempt_id,\n  context_json,\n  comment,\n];\n\nconst appendHpSpent = () => {\n  if (Number(parsed.hp_cost || 0) > 0) {\n    gameLogRows.push(\n      logRow({\n        event_type: 'HP_SPENT',\n        entity_group: 'THERAPY',\n        entity_id: clean(parsed.status),\n        entity_name: 'Therapy HP Cost',\n        status: 'SPENT',\n        value: String(parsed.hp_cost),\n        resource_type: 'HP',\n        delta: String(-Math.abs(Number(parsed.hp_cost))),\n        context_json: safeJsonString({ mode: ctx.mode, trigger_reason: ctx.trigger_reason }),\n        comment: clean(parsed.trigger || parsed.summary_for_user),\n      }),\n    );\n  }\n};\n\nif (parsed.status === 'discussion') {\n  gameLogRows.push(\n    logRow({\n      event_type: 'THERAPY_DISCUSSION',\n      entity_group: 'THERAPY',\n      entity_id: 'discussion',\n      entity_name: 'Therapy Discussion',\n      status: 'DISCUSSION',\n      context_json: safeJsonString({ trigger_reason: ctx.trigger_reason, method: parsed.method }),\n      comment: clean(parsed.summary_for_user),\n    }),\n  );\n}\n\nif (parsed.status === 'final') {\n  beliefRows.push(beliefRow);\n  gameLogRows.push(\n    logRow({\n      event_type: 'BELIEF_RECORDED',\n      entity_group: 'BELIEF',\n      entity_id: `belief_${Date.now()}`,\n      entity_name: clean(parsed.category || 'Belief'),\n      status: 'LOGGED',\n      value: clean(parsed.new_insight),\n      resource_type: 'INSIGHT',\n      context_json: safeJsonString({\n        method: parsed.method,\n        old_belief: parsed.old_belief,\n        action_step: parsed.action_step,\n      }),\n      comment: clean(parsed.summary_for_user),\n    }),\n  );\n  appendHpSpent();\n  if (Number(parsed.hp_cost || 0) > 0) {\n    gameLogRows.push(\n      logRow({\n        event_type: 'HP_GAIN',\n        entity_group: 'THERAPY',\n        entity_id: clean(parsed.status),\n        entity_name: 'Therapy HP Recovery',\n        status: 'GAINED',\n        value: String(parsed.hp_cost),\n        resource_type: 'HP',\n        delta: String(Math.abs(Number(parsed.hp_cost))),\n        context_json: safeJsonString({ mode: ctx.mode, trigger_reason: ctx.trigger_reason }),\n        comment: 'HP восстановлен после терапевтической сессии',\n      }),\n    );\n  }\n  const activeBossName = clean(ctx.active_boss_name || '');\n  if (activeBossName) {\n    gameLogRows.push(\n      logRow({\n        event_type: 'BOSS_DEFEATED',\n        entity_group: 'BOSS',\n        entity_id: activeBossName.toLowerCase().replace(/\\s+/g, '_'),\n        entity_name: activeBossName,\n        status: 'DEFEATED',\n        resource_type: 'XP_Gold',\n        context_json: safeJsonString({ defeated_via: 'therapy_session', trigger: parsed.trigger, category: parsed.category }),\n        comment: 'Босс побеждён через терапевтическую сессию',\n      }),\n    );\n  }\n  gameLogRows.push(\n    logRow({\n      event_type: 'THERAPY_SESSION_COMPLETED',\n      entity_group: 'THERAPY',\n      entity_id: 'final',\n      entity_name: 'Therapy Session Completed',\n      status: 'FINAL',\n      context_json: safeJsonString({ trigger: parsed.trigger, category: parsed.category }),\n      comment: clean(parsed.summary_for_user),\n    }),\n  );\n}\n\nif (parsed.status === 'level_up_interview') {\n  if (parsed.outcome === 'APPROVED') {\n    gameLogRows.push(\n      logRow({\n        event_type: 'LEVEL_UP_APPROVED',\n        entity_group: 'LEVEL',\n        entity_id: levelName || 'current_level',\n        entity_name: levelName || 'Current Level',\n        status: 'APPROVED',\n        context_json: safeJsonString({ reason: parsed.reason }),\n        comment: clean(parsed.summary_for_user),\n      }),\n    );\n  } else if (parsed.outcome === 'HELD') {\n    gameLogRows.push(\n      logRow({\n        event_type: 'LEVEL_UP_HELD',\n        entity_group: 'LEVEL',\n        entity_id: levelName || 'current_level',\n        entity_name: levelName || 'Current Level',\n        status: 'HELD',\n        context_json: safeJsonString({ reason: parsed.reason }),\n        comment: clean(parsed.summary_for_user),\n      }),\n    );\n  } else {\n    gameLogRows.push(\n      logRow({\n        event_type: 'LEVEL_UP_INTERVIEW_STARTED',\n        entity_group: 'LEVEL',\n        entity_id: levelName || 'current_level',\n        entity_name: levelName || 'Current Level',\n        status: 'PENDING',\n        context_json: safeJsonString({ trigger_reason: ctx.trigger_reason }),\n        comment: clean(parsed.summary_for_user),\n      }),\n    );\n  }\n  appendHpSpent();\n}\n\nif (parsed.status === 'five_failures_analysis') {\n  gameLogRows.push(\n    logRow({\n      event_type: 'FIVE_FAILURES_ANALYZED',\n      entity_group: 'THERAPY',\n      entity_id: 'five_failures',\n      entity_name: 'Five Failures Analysis',\n      status: clean(parsed.outcome || 'PENDING'),\n      context_json: safeJsonString({ reason: parsed.reason, new_target_json: parsed.new_target_json }),\n      comment: clean(parsed.summary_for_user),\n    }),\n  );\n  if (['KEEP', 'ADJUST', 'REPLACE'].includes(parsed.outcome)) {\n    gameLogRows.push(\n      logRow({\n        event_type: 'TARGET_REVIEWED',\n        entity_group: 'GOAL',\n        entity_id: parsed.outcome.toLowerCase(),\n        entity_name: `Target ${parsed.outcome}`,\n        status: parsed.outcome,\n        context_json: safeJsonString(parsed.new_target_json),\n        comment: clean(parsed.reason),\n      }),\n    );\n  }\n  appendHpSpent();\n}\n\nif (parsed.status === 'base_rule_reframe') {\n  gameLogRows.push(\n    logRow({\n      event_type: 'THERAPY_REFRAME_STARTED',\n      entity_group: 'THERAPY',\n      entity_id: 'base_rule_reframe',\n      entity_name: 'Base Rule Reframe',\n      status: clean(parsed.outcome || 'PENDING'),\n      context_json: safeJsonString({\n        trigger_reason: ctx.trigger_reason,\n        rule_change_request: ctx.rule_change_request,\n      }),\n      comment: clean(parsed.summary_for_user),\n    }),\n  );\n\n  if (parsed.outcome === 'APPROVED' && Array.isArray(parsed.approved_patch)) {\n    for (const patch of parsed.approved_patch) {\n      const ruleId = clean(patch.rule_id);\n      if (!ruleId) continue;\n      const existing = ruleMap.get(ruleId) || {};\n      approvedRuleIds.push(ruleId);\n\n      if (existing.row_number) {\n        ruleDeactivateData.push({ range: `GAME_RULES!C${existing.row_number}`, values: [[false]] });\n      }\n\n      const targetJson =\n        patch.target_json && typeof patch.target_json === 'object'\n          ? patch.target_json\n          : (() => {\n              try {\n                return JSON.parse(clean(existing.target_json) || '{}');\n              } catch (e) {\n                return {};\n              }\n            })();\n\n      ruleAppendRows.push([\n        nowTs,\n        true,\n        clean(existing.rule_group || 'SYSTEM'),\n        clean(existing.type || 'BASE_RULE'),\n        ruleId,\n        clean(existing.rpg_name || ruleId),\n        clean(existing.track),\n        clean(existing.stage_scope),\n        clean(existing.level_scope),\n        clean(existing.attempt_scope),\n        clean(patch.value ?? existing.value),\n        clean(patch.resource_type ?? existing.resource_type),\n        clean(patch.target_value ?? existing.target_value),\n        clean(patch.period ?? existing.period),\n        safeJsonString(targetJson),\n        clean(patch.effect ?? existing.effect),\n        clean(patch.effect_target ?? existing.effect_target),\n        clean(patch.trigger_json ?? existing.trigger_json),\n        clean(patch.flavor_text ?? existing.flavor_text),\n        clean(patch.desc ?? existing.desc),\n        'THERAPIST',\n        clean(existing.sort_order),\n        clean(patch.notes || 'BASE_RULE|THERAPIST_REFRAME'),\n      ]);\n\n      gameLogRows.push(\n        logRow({\n          event_type: 'RULE_UPDATED',\n          entity_group: 'RULE',\n          entity_id: ruleId,\n          entity_name: ruleId,\n          status: 'UPDATED',\n          value: clean(patch.value ?? existing.value),\n          context_json: safeJsonString({\n            target_value: patch.target_value ?? existing.target_value,\n            period: patch.period ?? existing.period,\n            target_json: targetJson,\n          }),\n          comment: clean(parsed.reason || parsed.summary_for_user),\n        }),\n      );\n    }\n\n    gameLogRows.push(\n      logRow({\n        event_type: 'THERAPY_REFRAME_COMPLETED',\n        entity_group: 'THERAPY',\n        entity_id: 'base_rule_reframe',\n        entity_name: 'Base Rule Reframe',\n        status: 'APPROVED',\n        context_json: safeJsonString({ approved_rule_ids: approvedRuleIds }),\n        comment: clean(parsed.summary_for_user),\n      }),\n    );\n  }\n\n  if (clean(parsed.new_insight)) {\n    beliefRows.push(beliefRow);\n  }\n  appendHpSpent();\n}\n\nlet nextWorkflow = '';\nif (parsed.status === 'five_failures_analysis' && ['ADJUST', 'REPLACE'].includes(parsed.outcome)) nextWorkflow = 'GAME_RULES';\nif (parsed.status === 'base_rule_reframe' && parsed.outcome !== 'APPROVED') nextWorkflow = 'THERAPIST';\n\nreturn [\n  {\n    json: {\n      ...ctx,\n      ...parsed,\n      response_text: clean(parsed.summary_for_user || 'Готово.'),\n      belief_rows: beliefRows,\n      game_log_rows: gameLogRows,\n      rule_deactivate_data: ruleDeactivateData,\n      rule_append_rows: ruleAppendRows,\n      belief_written: beliefRows.length > 0,\n      hp_cost: Number(parsed.hp_cost || 0),\n      game_log_rows_count: gameLogRows.length,\n      rule_patch_applied: ruleAppendRows.length > 0 || ruleDeactivateData.length > 0,\n      approved_rule_ids: approvedRuleIds,\n      next_workflow: nextWorkflow,\n    },\n  },\n];\n"
+      },
+      "id": "351bbddb-6044-455e-b78a-874dc7a8a83b",
+      "name": "Build Writes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f9077d53-bccf-48d9-8515-363e49dfb333",
+              "leftValue": "={{ Array.isArray($('Build Writes').first().json.rule_deactivate_data) && $('Build Writes').first().json.rule_deactivate_data.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "57b686e7-4be7-4b6c-a39b-bb9b1b2bcf9f",
+      "name": "Has Rule Deactivations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2380,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $('Build Writes').first().json.rule_deactivate_data }) }}",
+        "options": {}
+      },
+      "id": "350f1214-f582-4cd1-bd4c-bad3014ed65c",
+      "name": "Deactivate Old Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2620,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "754d3c09-7096-4e68-af61-eb978350fa67",
+              "leftValue": "={{ Array.isArray($('Build Writes').first().json.rule_append_rows) && $('Build Writes').first().json.rule_append_rows.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5650effc-1d44-48bf-8fb0-6cbe7fffcf57",
+      "name": "Has Rule Appends?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_RULES!B:X:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Writes').first().json.rule_append_rows }) }}",
+        "options": {}
+      },
+      "id": "279fc251-8806-4540-a2a8-795aa77e14e8",
+      "name": "Append New Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3100,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "559547df-2570-4091-975d-e8b59164e008",
+              "leftValue": "={{ Array.isArray($('Build Writes').first().json.belief_rows) && $('Build Writes').first().json.belief_rows.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "168fcfb5-f505-4b53-a42d-a9cd39beb63a",
+      "name": "Has BELIEF Writes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/BELIEFS!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Writes').first().json.belief_rows }) }}",
+        "options": {}
+      },
+      "id": "f7aa714e-104f-4d90-95bf-2598c3ffe30f",
+      "name": "Append BELIEFS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3580,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "db3642de-3cbe-4f1a-949e-d91fd129514c",
+              "leftValue": "={{ Array.isArray($('Build Writes').first().json.game_log_rows) && $('Build Writes').first().json.game_log_rows.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4b5346ae-2037-4c3d-94de-be0fbb0c8a77",
+      "name": "Has GAME_LOG Writes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3820,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Writes').first().json.game_log_rows }) }}",
+        "options": {}
+      },
+      "id": "f5030942-e031-4125-841c-c5c49ae9ec09",
+      "name": "Append GAME_LOG Rows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4060,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Build Writes').first().json || {};\nreturn [{ json: {\n  ok: data.ok !== false,\n  status: data.status || '',\n  response_text: data.response_text || 'Готово.',\n  belief_written: !!data.belief_written,\n  hp_cost: Number(data.hp_cost || 0),\n  game_log_rows_count: Number(data.game_log_rows_count || 0),\n  game_log_rows: Array.isArray(data.game_log_rows) ? data.game_log_rows : [],\n  rule_patch_applied: !!data.rule_patch_applied,\n  approved_rule_ids: Array.isArray(data.approved_rule_ids) ? data.approved_rule_ids : [],\n  next_workflow: data.next_workflow || '',\n  mode: data.mode || '',\n  user_id: data.user_id || '145771888'\n} }];"
+      },
+      "id": "a870b42a-7cea-4e3f-818f-35663f73fa5e",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Read PROFILE_GAME Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PROFILE_GAME Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Read Recent BELIEFS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Recent BELIEFS": {
+      "main": [
+        [
+          {
+            "node": "Read GAME_RULES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME_RULES": {
+      "main": [
+        [
+          {
+            "node": "Build Compact Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Compact Context": {
+      "main": [
+        [
+          {
+            "node": "AI Therapist Core",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Therapist Core",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Therapist Core": {
+      "main": [
+        [
+          {
+            "node": "Parse + Validate JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Validate JSON": {
+      "main": [
+        [
+          {
+            "node": "Build Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Writes": {
+      "main": [
+        [
+          {
+            "node": "Has Rule Deactivations?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Rule Deactivations?": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Old Rules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Rule Appends?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Old Rules": {
+      "main": [
+        [
+          {
+            "node": "Has Rule Appends?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Rule Appends?": {
+      "main": [
+        [
+          {
+            "node": "Append New Rules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has BELIEF Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append New Rules": {
+      "main": [
+        [
+          {
+            "node": "Has BELIEF Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has BELIEF Writes?": {
+      "main": [
+        [
+          {
+            "node": "Append BELIEFS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has GAME_LOG Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append BELIEFS": {
+      "main": [
+        [
+          {
+            "node": "Has GAME_LOG Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has GAME_LOG Writes?": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG Rows": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "version": null,
+  "id": "fxeZXplAm5MfdSGDdi338",
+  "tags": []
+}

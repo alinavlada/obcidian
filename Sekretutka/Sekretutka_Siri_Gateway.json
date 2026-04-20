@@ -1,0 +1,606 @@
+{
+  "name": "Sekretutka_Siri_Gateway",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "siri-gateway",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        128
+      ],
+      "id": "70eb8468-815a-48bb-b368-1026189b6a82",
+      "name": "Siri Webhook",
+      "webhookId": "siri-sekretutka-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем текст из тела запроса\n// iOS Shortcut отправляет: { \"text\": \"...голосовое сообщение...\" }\nconst body = $input.first().json.body || $input.first().json;\nconst rawText = body.text || body.message || body.query || '';\n\nif (!rawText.trim()) {\n  throw new Error('Пустой запрос от Siri');\n}\n\nreturn {\n  json: {\n    user_message: rawText.trim(),\n    source: 'siri',\n    timestamp: $now.setZone('Asia/Bangkok').toISO()\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        128
+      ],
+      "id": "4fc38b0a-1f6a-4889-8455-1fcce988d908",
+      "name": "Parse Siri Input"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "id",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PROFILE_GAME",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -480,
+        128
+      ],
+      "id": "dd94767e-6d03-4795-badc-7180e6f77249",
+      "name": "Read PROFILE_GAME",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "id",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "GAME_RULES",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -240,
+        128
+      ],
+      "id": "4e40f0e5-dba7-46e1-a33e-a58797ad12e2",
+      "name": "Get Rules",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8df4f9b5-e00a-4408-b9ba-ddc88842e30c",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Parse Siri Input').first().json.user_message }}",
+        "options": {
+          "systemMessage": "=Ты — Секретутка, голосовой ассистент Алины. Запрос пришёл через Siri.\n\nВАЖНО — ГОЛОСОВОЙ РЕЖИМ:\n- Отвечай не длиннее 2 предложений.\n- Без эмодзи в начале фразы.\n- Без markdown-форматирования (без * # - и т.д.).\n- Говори как живой человек, коротко и ясно.\n- Язык: русский.\n\nСегодня: {{ $now.setZone('Asia/Bangkok').toFormat('cccc, yyyy-MM-dd') }}\nTimezone: Asia/Bangkok.\n\nСостояние игрока:\nHP: {{ $('Read PROFILE_GAME').first().json.HP_CURRENT }}/100\nXP Gold: {{ $('Read PROFILE_GAME').first().json.XP_GOLD }}\nДень цикла: {{ $('Read PROFILE_GAME').first().json.CYCLE_DAY }}\n\nПравила игры: {{ JSON.stringify($('Get Rules').all().map(i => i.json)) }}\n\nТы умеешь:\n- Записывать задачи (используй add_task)\n- Отмечать привычки (используй track_habit)\n- Записывать расходы/доходы (используй add_finance)\n- Отвечать на простые вопросы голосом\n\nПривычки: water, yoga, nad_plus, sales_calls, posts, reading, run.\nКатегории задач: Personal, Family, Health, Career, Finances, Household, Hobby, Travel, Social, Appointment, Contact.\n\nПосле выполнения действия — подтверди одним предложением что сделала.",
+          "maxIterations": 5,
+          "returnIntermediateSteps": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        0,
+        128
+      ],
+      "id": "96fa4dda-f58c-4ac4-9414-9ad0d026bf5b",
+      "name": "Sekretutka Voice"
+    },
+    {
+      "parameters": {
+        "description": "Записывает задачу в Task Tracker (лист Task List) и в Google Calendar.\nИспользуй когда Алина называет задачу, дело или напоминание.",
+        "workflowId": {
+          "__rl": true,
+          "value": "bVNR2xmUUo_m1_PB7382n",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bVNR2xmUUo_m1_PB7382n",
+          "cachedResultName": "Sekretutka_tasks & calendar"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "task": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('task', `Название задачи`, 'string') }}",
+            "start_date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('start_date', `YYYY-MM-DD. Если не указана — сегодня.`, 'string') }}",
+            "due_date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('due_date', `YYYY-MM-DD дедлайн, если есть`, 'string') }}",
+            "status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('status', `Pending / In Progress / Completed`, 'string') }}",
+            "category": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('category', `Personal / Family / Health / Career / Finances / Household / Hobby / Travel / Social / Appointment / Contact`, 'string') }}",
+            "priority": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('priority', `🟥 High / 🟪 Medium / 🟩 Low`, 'string') }}",
+            "recurring": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('recurring', `true или false`, 'boolean') }}",
+            "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notes', `Дополнительная информация`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "task",
+              "displayName": "task",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "recurring",
+              "displayName": "recurring",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        400
+      ],
+      "id": "0de07f0e-fc2c-4ae4-b368-11a393fc94b0",
+      "name": "add_task"
+    },
+    {
+      "parameters": {
+        "description": "Отмечает выполнение привычки. Параметры: item_id (ID из GAME_RULES: water/yoga/run/nad_plus/posts/reading/sales_calls), value (количество), date (YYYY-MM-DD), status (DONE/SKIPPED).",
+        "workflowId": {
+          "__rl": true,
+          "value": "bVNR2xmUUo_m1_PB7382n",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bVNR2xmUUo_m1_PB7382n",
+          "cachedResultName": "Quest_Architect_Daily_Planner"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "item_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('item_id', `water, yoga, run, nad_plus, posts, reading, sales_calls`, 'string') }}",
+            "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('value', `Количество (1 по умолчанию)`, 'number') }}",
+            "date": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('date', `YYYY-MM-DD`, 'string') }}",
+            "status": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('status', `DONE или SKIPPED`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "item_id",
+              "displayName": "item_id",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        400
+      ],
+      "id": "e0e500e1-3c1a-44ad-9620-a6f76dffe7ab",
+      "name": "track_habit"
+    },
+    {
+      "parameters": {
+        "description": "Записывает расход или доход. Параметры: TYPE, CATEGORY, DETAILS, AMOUNT, CURRENCY (THB по умолчанию), DATE, ACCOUNT.",
+        "workflowId": {
+          "__rl": true,
+          "value": "xFmyWUFSK1CwQxCC54lRF",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/xFmyWUFSK1CwQxCC54lRF",
+          "cachedResultName": "Sekretutka_finance"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "AMOUNT": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('AMOUNT', `Сумма`, 'number') }}",
+            "TYPE": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('TYPE', `Income / Variable Expenses / Fixed Expenses / Savings / Debts`, 'string') }}",
+            "CATEGORY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('CATEGORY', `Dining out, Groceries, Transport, Salary, Freelance Work и т.д.`, 'string') }}",
+            "CURRENCY": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('CURRENCY', `THB / RUB / USDT`, 'string') }}",
+            "DETAILS": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('DETAILS', `Название покупки или источника`, 'string') }}",
+            "DATE": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('DATE', `YYYY-MM-DD`, 'string') }}",
+            "ACCOUNT": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('ACCOUNT', `BKK-bank / Cash / True Money`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "TYPE",
+              "displayName": "TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "CATEGORY",
+              "displayName": "CATEGORY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "CURRENCY",
+              "displayName": "CURRENCY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "AMOUNT",
+              "displayName": "AMOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "DETAILS",
+              "displayName": "DETAILS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "DATE",
+              "displayName": "DATE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "ACCOUNT",
+              "displayName": "ACCOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        400
+      ],
+      "id": "4235ef80-620e-4369-b4f8-67981a234857",
+      "name": "add_finance"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Формируем ответ для Siri\n// Siri ожидает JSON с полем 'response' или просто текст\nconst agentOutput = $input.first().json.output || 'Готово.';\n\n// Чистим от markdown (Siri читает вслух — форматирование не нужно)\nconst cleaned = agentOutput\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/#{1,6}\\s/g, '')\n  .replace(/\\[.*?\\]/g, '')  // убираем строки статус-бара\n  .replace(/\\n{3,}/g, '\\n')\n  .trim();\n\n// Берём только первые 2 предложения для голосового ответа\nconst sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];\nconst voiceResponse = sentences.slice(0, 2).join(' ').trim();\n\nreturn {\n  json: {\n    response: voiceResponse || 'Готово.',\n    full_response: cleaned\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        128
+      ],
+      "id": "c41e1d83-61f1-46ca-aaa1-9e8f5c8b9d7c",
+      "name": "Format Voice Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $json.response, full_response: $json.full_response }) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        128
+      ],
+      "id": "eaf58b4e-188d-4c7f-8275-f1a5617b2a5a",
+      "name": "Respond to Siri"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Siri Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Siri Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Siri Input": {
+      "main": [
+        [
+          {
+            "node": "Read PROFILE_GAME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Rules": {
+      "main": [
+        [
+          {
+            "node": "Sekretutka Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sekretutka Voice",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add_task": {
+      "ai_tool": [
+        [
+          {
+            "node": "Sekretutka Voice",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "track_habit": {
+      "ai_tool": [
+        [
+          {
+            "node": "Sekretutka Voice",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "add_finance": {
+      "ai_tool": [
+        [
+          {
+            "node": "Sekretutka Voice",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sekretutka Voice": {
+      "main": [
+        [
+          {
+            "node": "Format Voice Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Voice Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Siri",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PROFILE_GAME": {
+      "main": [
+        [
+          {
+            "node": "Get Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "611513a5-c9cb-4e8e-bfe9-4df8c3a01de0",
+  "meta": {
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "ltMvWMArBm03Z0ILszXNM",
+  "tags": []
+}

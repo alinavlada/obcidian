@@ -1,0 +1,470 @@
+{
+  "name": "1.2. Sekretutka_Get Schedule Context",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"source\": \"sheets\"\n}"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -560,
+        96
+      ],
+      "id": "ee8e2efa-e9f5-408e-9a58-62de13c52609",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f5068fb7-d0d6-4e3c-83f0-5cc28ce225c2",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "sheets|tasks|todo|list|задач|список|квест|quest",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "sheets"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "personal|home|family|личн|семь",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    },
+                    "id": "5cfc7109-4c90-4592-9052-d70e55835b9c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "personal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "2de46f57-30a9-4063-82ad-92b01252142d",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "family",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "family"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7f60f9cd-e4a0-404f-a1e0-751f558da805",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "razvitie|work|business|job|office|работ|бизнес",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "razvitie"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "99b46977-df76-457f-88ed-f1d5bb06c48f",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "profile",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "profile"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "13fae1f9-880e-4de6-8962-43c4a73e56b2",
+                    "leftValue": "={{ $json.source }}",
+                    "rightValue": "finance|траты|кошелек|счет|баланс|деньги|wallet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "wallet"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -304,
+        16
+      ],
+      "id": "08fa5f28-11f7-4a49-b8fe-377d1b2a8da1",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "jhv5trtuni8m7cb63k2803ni7c@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Личный"
+        },
+        "limit": 5,
+        "timeMax": "={{ $now.plus({ days: 7 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        16
+      ],
+      "id": "e53edfe2-1279-43fc-9d79-f4e72b79b424",
+      "name": "Личный",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "CbM9yGC34DrqH3p3",
+          "name": "Alinavlada86 Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "alinavlada86@gmail.com",
+          "mode": "list",
+          "cachedResultName": "Саморазвитие"
+        },
+        "limit": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        16
+      ],
+      "id": "f8d79b30-ee20-4fed-8b09-2f63b169faf6",
+      "name": "Развитие",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "CbM9yGC34DrqH3p3",
+          "name": "Alinavlada86 Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "family12420110438676679422@group.calendar.google.com",
+          "mode": "list",
+          "cachedResultName": "Семья"
+        },
+        "limit": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        160,
+        16
+      ],
+      "id": "312d323f-007a-457f-a5ba-daf540986d00",
+      "name": "Семья",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "CbM9yGC34DrqH3p3",
+          "name": "Alinavlada86 Calendar account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2124232271,
+          "mode": "list",
+          "cachedResultName": "PROFILE_GAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=2124232271"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        160
+      ],
+      "id": "36abcf4b-dff6-44ff-9b44-c8bc65c85268",
+      "name": "PROFILE_GAME",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029542969,
+          "mode": "list",
+          "cachedResultName": "Task List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1029542969"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 6,
+              "firstDataRow": 7
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -16,
+        -160
+      ],
+      "id": "aa8d94b4-047b-4077-bc6e-94b4bbc314ac",
+      "name": "Task List",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "WALLET_Monthly Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        288
+      ],
+      "id": "a79f036b-88bc-40d0-8e1d-f14657195bea",
+      "name": "WALLET_Monthly Budget",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Task List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Личный",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Семья",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Развитие",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PROFILE_GAME",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WALLET_Monthly Budget",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Task List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "605b8021-a440-41a9-b2e6-bd126a297eba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "HqfILbWgZ-n7KWPU-pvpl",
+  "tags": []
+}

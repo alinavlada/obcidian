@@ -1,0 +1,639 @@
+{
+  "EVENT_TYPE": {
+    "RULE_CREATED": {
+      "code": "RULE_CREATED",
+      "name": "Правило создано",
+      "layer": "rules",
+      "category": "rules",
+      "status_model": [
+        "CREATED"
+      ],
+      "description": "Первичная запись базовых правил или игровых сущностей в GAME_LOG."
+    },
+    "RULE_UPDATED": {
+      "code": "RULE_UPDATED",
+      "name": "Правило обновлено",
+      "layer": "rules",
+      "category": "rules",
+      "status_model": [
+        "UPDATED"
+      ],
+      "description": "Изменение существующего правила в GAME_RULES через версионирование и деактивацию старой версии."
+    },
+    "COMMIT_LOG": {
+      "code": "COMMIT_LOG",
+      "name": "Коммит правил принят",
+      "layer": "rules",
+      "category": "commit",
+      "status_model": [
+        "COMMITTED"
+      ],
+      "description": "Фиксирует принятие игрового коммита или онбординг-коммита."
+    },
+    "ONBOARDING_COMPLETED": {
+      "code": "ONBOARDING_COMPLETED",
+      "name": "Онбординг завершён",
+      "layer": "rules",
+      "category": "onboarding",
+      "status_model": [
+        "COMPLETED"
+      ],
+      "description": "Финальное событие завершения первичной настройки игры."
+    },
+    "ONBOARDING_CHECKPOINT": {
+      "code": "ONBOARDING_CHECKPOINT",
+      "name": "Чекпоинт онбординга сохранён",
+      "layer": "rules",
+      "category": "onboarding",
+      "status_model": [
+        "IN_PROGRESS",
+        "COMPLETED"
+      ],
+      "description": "Промежуточное состояние онбординга сохранено в GAME_LOG по session_id."
+    },
+    "ATTEMPT_STARTED": {
+      "code": "ATTEMPT_STARTED",
+      "name": "Попытка начата",
+      "layer": "engine",
+      "category": "attempt",
+      "status_model": [
+        "STARTED",
+        "RESUMED"
+      ],
+      "description": "Пользователь начал или возобновил рабочую попытку."
+    },
+    "ATTEMPT_FAILED": {
+      "code": "ATTEMPT_FAILED",
+      "name": "Попытка провалена",
+      "layer": "engine",
+      "category": "attempt",
+      "status_model": [
+        "FAILED"
+      ],
+      "description": "Попытка признана проваленной после периода тишины."
+    },
+    "STUCK_TIME_DETECTED": {
+      "code": "STUCK_TIME_DETECTED",
+      "name": "Застой по времени обнаружен",
+      "layer": "engine",
+      "category": "stuck",
+      "status_model": [
+        "DETECTED"
+      ],
+      "description": "Обнаружено 25+ часов тишины по активной попытке."
+    },
+    "STUCK_TRIGGERED": {
+      "code": "STUCK_TRIGGERED",
+      "name": "Застой подтверждён",
+      "layer": "engine",
+      "category": "stuck",
+      "status_model": [
+        "TRIGGERED"
+      ],
+      "description": "ENGINE подтвердил денежный застой и должен инициировать ответную логику."
+    },
+    "CONSISTENCY_CHECKED": {
+      "code": "CONSISTENCY_CHECKED",
+      "name": "Консистентность проверена",
+      "layer": "engine",
+      "category": "consistency",
+      "status_model": [
+        "CHECKED"
+      ],
+      "description": "Ежедневная служебная проверка состояния цикла, активности и сигналов."
+    },
+    "LEVEL_READY_REACHED": {
+      "code": "LEVEL_READY_REACHED",
+      "name": "Уровень готов к переходу",
+      "layer": "engine",
+      "category": "level",
+      "status_model": [
+        "READY"
+      ],
+      "description": "ENGINE определил, что текущий уровень достиг порога readiness."
+    },
+    "STAGE_CHANGED": {
+      "code": "STAGE_CHANGED",
+      "name": "Стадия изменена",
+      "layer": "engine",
+      "category": "stage",
+      "status_model": [
+        "CHANGED"
+      ],
+      "description": "ENGINE изменил игровую стадию пользователя."
+    },
+    "THERAPIST_REQUIRED": {
+      "code": "THERAPIST_REQUIRED",
+      "name": "Требуется терапевт",
+      "layer": "engine",
+      "category": "therapy_trigger",
+      "status_model": [
+        "REQUIRED"
+      ],
+      "description": "ENGINE решил, что нужно запустить терапевтический сценарий."
+    },
+    "SPRINT_STARTED": {
+      "code": "SPRINT_STARTED",
+      "name": "Спринт начат",
+      "layer": "engine",
+      "category": "sprint",
+      "status_model": [
+        "STARTED"
+      ],
+      "description": "ENGINE открыл новый спринт по длине и ритму из GAME_RULES."
+    },
+    "SPRINT_ENDED": {
+      "code": "SPRINT_ENDED",
+      "name": "Спринт завершён",
+      "layer": "engine",
+      "category": "sprint",
+      "status_model": [
+        "ENDED"
+      ],
+      "description": "ENGINE закрыл текущий спринт по длине или циклу."
+    },
+    "BOSS_ACTIVATED": {
+      "code": "BOSS_ACTIVATED",
+      "name": "Босс активирован",
+      "layer": "engine",
+      "category": "boss",
+      "status_model": [
+        "ACTIVATED"
+      ],
+      "description": "При старте спринта ENGINE детерминированно активировал одного из текущих боссов через hash-based chooseBossRule(seed). Seed должен быть привязан к стабильной идентичности спринта и не должен зависеть от технического статуса STARTED/RESTARTED."
+    },
+    "BOSS_DEFEATED": {
+      "code": "BOSS_DEFEATED",
+      "name": "Босс побеждён",
+      "layer": "engine",
+      "category": "boss",
+      "status_model": [
+        "DEFEATED"
+      ],
+      "description": "Активный босс побеждён через завершённую терапевтическую сессию (status=final). Записывается Therapist в момент THERAPY_SESSION_COMPLETED.",
+      "sources": [
+        "THERAPIST (FINAL mode, if active_boss_name exists)"
+      ]
+    },
+    "TREASURE_HORIZON_REACHED": {
+      "code": "TREASURE_HORIZON_REACHED",
+      "name": "Горизонт сокровища достигнут",
+      "layer": "engine",
+      "category": "treasure",
+      "status_model": [
+        "REACHED"
+      ],
+      "description": "ENGINE зафиксировал достижение даты horizon без завершения целевого цикла."
+    },
+    "GOLD_GAINED": {
+      "code": "GOLD_GAINED",
+      "name": "Золото получено",
+      "layer": "finance",
+      "category": "wallet",
+      "status_model": [
+        "LOGGED"
+      ],
+      "description": "Финансовый доход или приход зафиксирован в GAME_LOG."
+    },
+    "GOLD_LOST": {
+      "code": "GOLD_LOST",
+      "name": "Золото потрачено",
+      "layer": "finance",
+      "category": "wallet",
+      "status_model": [
+        "LOGGED"
+      ],
+      "description": "Финансовый расход или списание зафиксированы в GAME_LOG."
+    },
+    "HABIT_DONE": {
+      "code": "HABIT_DONE",
+      "name": "Привычка выполнена",
+      "layer": "quest_architect",
+      "category": "habit",
+      "status_model": [
+        "DONE"
+      ],
+      "description": "Quest Architect зафиксировал выполненную привычку."
+    },
+    "HABIT_SKIPPED": {
+      "code": "HABIT_SKIPPED",
+      "name": "Привычка пропущена",
+      "layer": "quest_architect",
+      "category": "habit",
+      "status_model": [
+        "SKIPPED"
+      ],
+      "description": "Quest Architect зафиксировал пропуск привычки."
+    },
+    "TASK_CREATED": {
+      "code": "TASK_CREATED",
+      "name": "Задача создана",
+      "layer": "quest_architect",
+      "category": "task",
+      "status_model": [
+        "CREATED"
+      ],
+      "description": "Quest Architect записал новую задачу в Task List."
+    },
+    "TASK_UPDATED": {
+      "code": "TASK_UPDATED",
+      "name": "Задача обновлена",
+      "layer": "quest_architect",
+      "category": "task",
+      "status_model": [
+        "UPDATED"
+      ],
+      "description": "Quest Architect изменил существующую задачу или её параметры."
+    },
+    "TASK_STATUS_CHANGED": {
+      "code": "TASK_STATUS_CHANGED",
+      "name": "Статус задачи изменён",
+      "layer": "quest_architect",
+      "category": "task",
+      "status_model": [
+        "PENDING",
+        "IN_PROGRESS",
+        "UNDER_REVIEW",
+        "ON_HOLD",
+        "DELAYED",
+        "OVERDUE",
+        "COMPLETED",
+        "CANCELED"
+      ],
+      "description": "Quest Architect изменил статус задачи в Task List."
+    },
+    "TASK_COMPLETED": {
+      "code": "TASK_COMPLETED",
+      "name": "Задача завершена",
+      "layer": "quest_architect",
+      "category": "task",
+      "status_model": [
+        "COMPLETED"
+      ],
+      "description": "Quest Architect зафиксировал завершение задачи как отдельное игровое событие."
+    },
+    "DAY_PLAN_UPDATED": {
+      "code": "DAY_PLAN_UPDATED",
+      "name": "План дня обновлён",
+      "layer": "quest_architect",
+      "category": "planner",
+      "status_model": [
+        "UPDATED"
+      ],
+      "description": "Quest Architect разложил задачи по daily planner или обновил план дня."
+    },
+    "GOAL_DECOMPOSED": {
+      "code": "GOAL_DECOMPOSED",
+      "name": "Цель разложена на шаги",
+      "layer": "quest_architect",
+      "category": "goal",
+      "status_model": [
+        "UPDATED"
+      ],
+      "description": "Quest Architect записал decomposition goal card в PROFILE_GAME."
+    },
+    "BELIEF_RECORDED": {
+      "code": "BELIEF_RECORDED",
+      "name": "Убеждение записано",
+      "layer": "therapist",
+      "category": "belief",
+      "status_model": [
+        "LOGGED"
+      ],
+      "description": "Терапевтический инсайт или новое убеждение сохранены."
+    },
+    "HP_GAIN": {
+      "code": "HP_GAIN",
+      "name": "HP восстановлен",
+      "layer": "vitality",
+      "category": "hp",
+      "status_model": [
+        "GAINED"
+      ],
+      "description": "HP восстановлен после терапевтической сессии (FINAL) или выполнения VITALITY-привычки. Delta положительная. HP не может превышать 100.",
+      "sources": [
+        "THERAPIST (FINAL mode)",
+        "QUEST_ARCHITECT (HABIT_DONE, track=VITALITY)"
+      ]
+    },
+    "HP_SPENT": {
+      "code": "HP_SPENT",
+      "name": "HP потрачена",
+      "layer": "therapist",
+      "category": "resource",
+      "status_model": [
+        "SPENT"
+      ],
+      "description": "Терапевтическая сессия списала HP как цену за работу."
+    },
+    "THERAPY_DISCUSSION": {
+      "code": "THERAPY_DISCUSSION",
+      "name": "Терапевтическая беседа",
+      "layer": "therapist",
+      "category": "session",
+      "status_model": [
+        "DISCUSSION"
+      ],
+      "description": "Промежуточный разговор без финальной фиксации убеждения."
+    },
+    "THERAPY_SESSION_COMPLETED": {
+      "code": "THERAPY_SESSION_COMPLETED",
+      "name": "Терапевтическая сессия завершена",
+      "layer": "therapist",
+      "category": "session",
+      "status_model": [
+        "FINAL"
+      ],
+      "description": "Финальная терапевтическая сессия завершена."
+    },
+    "LEVEL_UP_INTERVIEW_STARTED": {
+      "code": "LEVEL_UP_INTERVIEW_STARTED",
+      "name": "Интервью level-up начато",
+      "layer": "therapist",
+      "category": "level_up",
+      "status_model": [
+        "PENDING"
+      ],
+      "description": "Запущен сценарий проверки готовности к переходу уровня."
+    },
+    "LEVEL_UP_APPROVED": {
+      "code": "LEVEL_UP_APPROVED",
+      "name": "Level-up одобрен",
+      "layer": "therapist",
+      "category": "level_up",
+      "status_model": [
+        "APPROVED"
+      ],
+      "description": "Терапевт подтвердил готовность к переходу уровня."
+    },
+    "LEVEL_UP_HELD": {
+      "code": "LEVEL_UP_HELD",
+      "name": "Level-up удержан",
+      "layer": "therapist",
+      "category": "level_up",
+      "status_model": [
+        "HELD"
+      ],
+      "description": "Переход уровня отложен до дополнительной проработки."
+    },
+    "FIVE_FAILURES_ANALYZED": {
+      "code": "FIVE_FAILURES_ANALYZED",
+      "name": "Пять провалов проанализированы",
+      "layer": "therapist",
+      "category": "analysis",
+      "status_model": [
+        "PENDING",
+        "KEEP",
+        "ADJUST",
+        "REPLACE"
+      ],
+      "description": "Терапевтический разбор серии провалов и пересмотр цели."
+    },
+    "TARGET_REVIEWED": {
+      "code": "TARGET_REVIEWED",
+      "name": "Цель пересмотрена",
+      "layer": "therapist",
+      "category": "goal_review",
+      "status_model": [
+        "KEEP",
+        "ADJUST",
+        "REPLACE"
+      ],
+      "description": "Решение по текущей цели фиксируется через status, без динамических EVENT_TYPE."
+    },
+    "THERAPY_REFRAME_STARTED": {
+      "code": "THERAPY_REFRAME_STARTED",
+      "name": "Рефрейм правил начат",
+      "layer": "therapist",
+      "category": "reframe",
+      "status_model": [
+        "PENDING",
+        "APPROVED"
+      ],
+      "description": "Запущен сценарий перепрошивки базового правила."
+    },
+    "THERAPY_REFRAME_COMPLETED": {
+      "code": "THERAPY_REFRAME_COMPLETED",
+      "name": "Рефрейм правил завершён",
+      "layer": "therapist",
+      "category": "reframe",
+      "status_model": [
+        "APPROVED"
+      ],
+      "description": "Перепрошивка правила завершена и изменения применены."
+    },
+    "SERVICE_EFFECT_RECORDED": {
+      "code": "SERVICE_EFFECT_RECORDED",
+      "name": "Значимый сервисный эффект зафиксирован",
+      "layer": "service",
+      "category": "service_effect",
+      "status_model": [
+        "RECORDED"
+      ],
+      "description": "Read-only или orchestration workflow зафиксировал значимый сервисный эффект без изменения игровой механики. Для main допустим только когда read-only контекст реально был собран и использован в ответе; запись должна содержать источник сервиса, тип эффекта, дату, STAGE_AT_TIME, ATTEMPT_ID и компактный CONTEXT_JSON."
+    },
+    "TASK_REMINDED": {
+      "code": "TASK_REMINDED",
+      "name": "Задача напомнена за ~1 час до начала",
+      "layer": "engine",
+      "category": "reminder_audit",
+      "status_model": [
+        "SENT"
+      ],
+      "source_workflow": "1.1 Sekretutka_ENGINE_updated",
+      "description": "Hourly ENGINE обнаружил задачу с валидным временем старта в окне [now+30min, now+90min], отправил Telegram-уведомление и записал audit-событие в GAME_LOG. STATUS задачи не меняется; EVENT_TYPE не считается activity для attempt. ENTITY_ID должен опираться на стабильный row_number из Task List."
+    }
+  },
+  "EVENT_VALIDATION_RULES": {
+    "description": "Registry опирается на актуальный канон игры, а не только на текущий active set workflow.",
+    "timestamp_required": true,
+    "valid_events": [
+      "RULE_CREATED",
+      "RULE_UPDATED",
+      "COMMIT_LOG",
+      "ONBOARDING_COMPLETED",
+      "ONBOARDING_CHECKPOINT",
+      "ATTEMPT_STARTED",
+      "ATTEMPT_FAILED",
+      "STUCK_TIME_DETECTED",
+      "STUCK_TRIGGERED",
+      "CONSISTENCY_CHECKED",
+      "LEVEL_READY_REACHED",
+      "STAGE_CHANGED",
+      "THERAPIST_REQUIRED",
+      "SPRINT_STARTED",
+      "SPRINT_ENDED",
+      "BOSS_ACTIVATED",
+      "BOSS_DEFEATED",
+      "TREASURE_HORIZON_REACHED",
+      "GOLD_GAINED",
+      "GOLD_LOST",
+      "HABIT_DONE",
+      "HABIT_SKIPPED",
+      "TASK_CREATED",
+      "TASK_UPDATED",
+      "TASK_STATUS_CHANGED",
+      "TASK_COMPLETED",
+      "DAY_PLAN_UPDATED",
+      "GOAL_DECOMPOSED",
+      "BOSS_DEFEATED",
+      "BELIEF_RECORDED",
+      "HP_GAIN",
+      "HP_SPENT",
+      "THERAPY_DISCUSSION",
+      "THERAPY_SESSION_COMPLETED",
+      "LEVEL_UP_INTERVIEW_STARTED",
+      "LEVEL_UP_APPROVED",
+      "LEVEL_UP_HELD",
+      "FIVE_FAILURES_ANALYZED",
+      "TARGET_REVIEWED",
+      "THERAPY_REFRAME_STARTED",
+      "THERAPY_REFRAME_COMPLETED",
+      "SERVICE_EFFECT_RECORDED"
+    ],
+    "recommended_base_fields": [
+      "TS",
+      "EVENT_TYPE",
+      "SOURCE_WORKFLOW",
+      "ENTITY_GROUP",
+      "ENTITY_ID",
+      "STATUS",
+      "VALUE",
+      "RESOURCE_TYPE",
+      "DELTA",
+      "DATE_REF",
+      "STAGE_AT_TIME",
+      "LEVEL_AT_TIME",
+      "ATTEMPT_ID",
+      "CONTEXT_JSON",
+      "COMMENT"
+    ],
+    "attempt_activity_events": [
+      "ONBOARDING_COMPLETED",
+      "ATTEMPT_STARTED",
+      "RULE_CREATED",
+      "RULE_UPDATED",
+      "GOLD_GAINED",
+      "GOLD_LOST",
+      "HABIT_DONE",
+      "HABIT_SKIPPED",
+      "TASK_CREATED",
+      "TASK_UPDATED",
+      "TASK_STATUS_CHANGED",
+      "TASK_COMPLETED",
+      "DAY_PLAN_UPDATED",
+      "GOAL_DECOMPOSED",
+      "BOSS_DEFEATED",
+      "BELIEF_RECORDED",
+      "HP_GAIN",
+      "THERAPY_DISCUSSION",
+      "THERAPY_SESSION_COMPLETED",
+      "TARGET_REVIEWED",
+      "THERAPY_REFRAME_COMPLETED",
+      "LEVEL_UP_INTERVIEW_STARTED",
+      "LEVEL_UP_APPROVED",
+      "LEVEL_UP_HELD"
+    ],
+    "non_activity_events": [
+      "ONBOARDING_CHECKPOINT",
+      "CONSISTENCY_CHECKED",
+      "STUCK_TIME_DETECTED",
+      "STUCK_TRIGGERED",
+      "ATTEMPT_FAILED",
+      "LEVEL_READY_REACHED",
+      "STAGE_CHANGED",
+      "THERAPIST_REQUIRED",
+      "HP_SPENT",
+      "FIVE_FAILURES_ANALYZED",
+      "THERAPY_REFRAME_STARTED",
+      "SERVICE_EFFECT_RECORDED"
+    ],
+    "attempt_start_rule": "Новый attempt стартует только после ONBOARDING_COMPLETED и любого следующего или немедленного не-service события; ONBOARDING_COMPLETED может сразу создавать ATTEMPT_STARTED.",
+    "pre_game_rule": "Pre-game data можно учитывать в snapshot и контексте, но нельзя учитывать в attempt, stage и level logic."
+  },
+  "LAYER_MAPPING": {
+    "rules": {
+      "name": "Rules Layer",
+      "events": [
+        "RULE_CREATED",
+        "RULE_UPDATED",
+        "COMMIT_LOG",
+        "ONBOARDING_COMPLETED",
+        "ONBOARDING_CHECKPOINT"
+      ]
+    },
+    "engine": {
+      "name": "Engine Layer",
+      "events": [
+        "ATTEMPT_STARTED",
+        "ATTEMPT_FAILED",
+        "STUCK_TIME_DETECTED",
+        "STUCK_TRIGGERED",
+        "CONSISTENCY_CHECKED",
+        "LEVEL_READY_REACHED",
+        "STAGE_CHANGED",
+        "THERAPIST_REQUIRED",
+        "SPRINT_STARTED",
+        "SPRINT_ENDED",
+        "BOSS_ACTIVATED",
+        "BOSS_DEFEATED",
+        "TREASURE_HORIZON_REACHED",
+        "TASK_REMINDED"
+      ]
+    },
+    "finance": {
+      "name": "Finance Layer",
+      "events": [
+        "GOLD_GAINED",
+        "GOLD_LOST"
+      ]
+    },
+    "quest_architect": {
+      "name": "Quest Architect Layer",
+      "events": [
+        "HABIT_DONE",
+        "HABIT_SKIPPED",
+        "TASK_CREATED",
+        "TASK_UPDATED",
+        "TASK_STATUS_CHANGED",
+        "TASK_COMPLETED",
+        "DAY_PLAN_UPDATED",
+        "GOAL_DECOMPOSED"
+      ]
+    },
+    "therapist": {
+      "name": "Therapist Layer",
+      "events": [
+        "BELIEF_RECORDED",
+        "HP_GAIN",
+        "HP_SPENT",
+        "THERAPY_DISCUSSION",
+        "THERAPY_SESSION_COMPLETED",
+        "LEVEL_UP_INTERVIEW_STARTED",
+        "LEVEL_UP_APPROVED",
+        "LEVEL_UP_HELD",
+        "FIVE_FAILURES_ANALYZED",
+        "TARGET_REVIEWED",
+        "THERAPY_REFRAME_STARTED",
+        "THERAPY_REFRAME_COMPLETED",
+        "RULE_UPDATED"
+      ]
+    },
+    "service": {
+      "name": "Service Layer",
+      "events": [
+        "SERVICE_EFFECT_RECORDED"
+      ]
+    }
+  },
+  "normalization_notes": [
+    "Registry intentionally matches the current canonical game model rather than older abstract event taxonomy.",
+    "Attempt activity is defined only through EVENT_TYPE, not through arbitrary writes to tables.",
+    "Service effects may be logged, but they never продлевают attempt and never стартуют новый attempt.",
+    "Pre-game data can inform snapshot and context, but cannot affect attempt, stage, or level calculations.",
+    "TASK_REMINDED is an ENGINE-owned audit event and must not mutate Task List.STATUS into a reminder-specific state."
+  ],
+  "version": "3.2",
+  "updated_at": "2026-04-13T00:00:00Z",
+  "status": "active"
+}

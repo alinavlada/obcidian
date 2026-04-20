@@ -1,0 +1,1088 @@
+{
+  "name": "1.0 Sekretutka_Game Rules",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        44800,
+        21472
+      ],
+      "id": "9b3b194d-e3d2-4fd4-b0fd-8231ca4633d4",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\nfunction clean(v) { return String(v ?? '').trim(); }\nfunction parseJsonSafe(v, fallback) {\n  if (v && typeof v === 'object') return v;\n  const s = clean(v);\n  if (!s) return fallback;\n  try { return JSON.parse(s); } catch { return fallback; }\n}\nfunction parseBool(v) {\n  if (typeof v === 'boolean') return v;\n  const s = clean(v).toLowerCase();\n  return ['true','1','yes'].includes(s);\n}\nreturn [{ json: {\n  mode: clean(input.mode || 'ONBOARDING').toUpperCase(),\n  user_input: clean(input.user_input || input.text || input.message || ''),\n  session_id: clean(input.session_id || input.chat_id || input.user_id || 'default-session'),\n  current_state: Math.max(0, Math.min(40, Number.parseInt(input.current_state ?? '0', 10) || 0)),\n  draft_json: parseJsonSafe(input.draft_json, {}),\n  edit_target: clean(input.edit_target || ''),\n  goal_slot_hint: clean(input.goal_slot_hint || '1'),\n  intro_style: clean(input.intro_style || input.onboarding_style || 'coach').toLowerCase(),\n  restart_onboarding: parseBool(input.restart_onboarding),\n  today_bkk: $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'),\n  ts_bkk: $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss')\n} }];"
+      },
+      "id": "d66971c1-6ca0-4460-bed5-fcf276a0a479",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        44960,
+        21472
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e6a8b3c1-27e2-42c5-8011-cd65de775366",
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "ONBOARDING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ONBOARDING"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7c7e5b24-b0a3-4756-8255-27f761db1aef",
+                    "leftValue": "={{ $json.mode }}",
+                    "rightValue": "RULES_EDIT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RULES_EDIT"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "66030956-1149-4b27-b463-22c0ecba3243",
+      "name": "Mode Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        45136,
+        21456
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json || {};\nconst draft = data.draft_json || {};\nconst state = Number(data.current_state || 0);\nconst text = String(data.user_input || '').trim();\nconst hasOnboardingCheckpoint = Boolean(data.has_onboarding_checkpoint);\n\nfunction yes(v) {\n  return /^(ок|okay|ok|да|yes|go|поехали|погнали|старт|стартуем|начинаем|начнем|начнём|давай|давай начнем|давай начнём|хочу|хочу начать|готова|готов|готова начать|готов начать|готова к настройке|готов к настройке|переход к настройке|к настройке|настройка|перейти к настройке|перейдем к настройке|перейдём к настройке|запускай|запусти|запускаем|запустить|go ahead|lets go|let's go)$/i.test(String(v || '').trim());\n}\n\nfunction contractYes(v) {\n  return /^(да|yes|подтверждаю|согласна|согласен|ок|готова|готов|да, подтверждаю)$/i.test(String(v || '').trim());\n}\n\nfunction buildContract(d) {\n  const lines = [];\n  lines.push('Вот что я зафиксировала в твоей игре.');\n  if (d.bio) lines.push(`Состояние на старте: ${d.bio.body_state || d.bio.energy_state || 'зафиксировано'}.`);\n  if (d.sprint?.days) lines.push(`Спринт: ${d.sprint.days} дней.`);\n  if (d.goal?.goal_name) lines.push(`Цель уровня: ${d.goal.goal_name}.`);\n  if (d.goal?.treasure) lines.push(`Treasure: ${d.goal.treasure}.`);\n  if (d.level_rules?.money_net_monthly_threshold != null && d.level_rules?.money_net_monthly_threshold !== '') lines.push(`Money Net для апа уровня: ${d.level_rules.money_net_monthly_threshold} THB в месяц 3 месяца подряд.`);\n  if (Array.isArray(d.level_names) && d.level_names.length) lines.push(`Уровни: ${d.level_names.join(', ')}.`);\n  lines.push('Если все верно, напиши: да, подтверждаю. Если хочешь поправить блок, напиши его название: био, реальность, спринт, задачи, привычки, KPI, цель, боссы, recovery, магазин, уровни или money net.');\n  return lines.join(' ');\n}\n\nfunction detectContractBackState(v) {\n  const s = String(v || '').toLowerCase();\n  if (/био|цикл|энерг|тело/i.test(s)) return 2;\n  if (/реаль|день|обязатель|нагруз/i.test(s)) return 6;\n  if (/спринт|ритм/i.test(s)) return 9;\n  if (/задач|track|craft|social|vitality/i.test(s)) return 11;\n  if (/привыч/i.test(s)) return 17;\n  if (/kpi/i.test(s)) return 23;\n  if (/цель|treasure|горизонт/i.test(s)) return 26;\n  if (/босс|stuck|штраф/i.test(s)) return 30;\n  if (/recovery|hp|сло/i.test(s)) return 35;\n  if (/магаз|наград/i.test(s)) return 36;\n  if (/уров|level/i.test(s)) return 37;\n  if (/money|net|доход|денежн|порог|threshold/i.test(s)) return 38;\n  return null;\n}\n\nconst introStyleRaw = String(data.intro_style || data.onboarding_style || 'coach').trim().toLowerCase();\nconst introStyle = introStyleRaw === 'rpg' ? 'rpg' : 'coach';\nconst introPromptByStyle = {\n  coach: 'Добро пожаловать в Секретутку. Это мягкий игровой слой поверх реальной жизни: не контроль и не гонка за идеалом, а понятная система, где видно, за что ты платишь и что реально растет. Мы соберем правила под тебя: цель, KPI, привычки, задачи, награды и условия безопасности. Базовая логика уже зафиксирована системой, а тактические решения выбираешь ты. Если готова начать, просто напиши: ок.',\n  rpg: 'Добро пожаловать в Секретутку. Представь, что мы запускаем твою личную игру: каждый день это ход, каждый выбор имеет цену, а каждый устойчивый шаг усиливает тебя. Здесь нет наказания за несовершенство, есть честная экономика решений и рост через консистентность. Сейчас мы соберем твой игровой контракт: цель, KPI, привычки, задачи, награды и правила безопасности. Если готова, напиши: ок.'\n};\nconst introPrompt = introPromptByStyle[introStyle];\n\nconst prompts = {\n  0: introPrompt,\n  1: 'Сейчас я проведу тебя по настройке игры шаг за шагом. Сначала мы поймем твое текущее состояние и реальную нагрузку, потом соберем привычки, задачи, KPI, цель и правила игры, а в конце зафиксируем твой контракт. Я буду задавать по одному вопросу за раз.',\n  2: 'Для начала откалибруем систему. Оцени свой текущий уровень энергии по шкале от 0 до 10, где 10 — “могу свернуть горы”, а 0 — “не могу встать с кровати”.',\n  3: 'Какой сейчас день цикла? Если не знаешь, напиши дату начала недавней менструации.',\n  4: 'Как сейчас ощущается тело? Можно коротко и по-человечески.',\n  5: 'Есть ли сейчас что-то острое: болезнь, сильная усталость, восстановление после перегруза, боль, недосып?',\n  6: 'Что сейчас занимает большую часть твоих дней? Работа, дом, семья, лечение, учеба — в общих чертах.',\n  7: 'Есть ли у тебя регулярные обязательства, которые почти нельзя сдвигать? Например работа, ребенок, лечение, дорога, учеба.',\n  8: 'После обязательных дел у тебя обычно остается мало, средне или много сил? Можно своими словами.',\n  9: 'Теперь настроим спринт. На сколько дней ты хочешь его взять? Если хочешь, можно оставить длину по циклу.',\n  10: 'Как тебе комфортнее двигаться внутри спринта: равномерно, рывками, спокойно, только по будням, с разгоном в начале?',\n  11: '*Теперь про треки игры*\\n\\nУ нас есть 3 направления:\\n💪 Craft — деньги, опыт, дело и навык;\\n🫀 Vitality — тело, здоровье, самочувствие и восстановление;\\n🤝 Social — отношения, поддержка, любовь, влияние и социальный капитал.\\n\\nНачнём с задач для трека Craft 💪\\nНапиши задачу и количество XP\\_Gold, которые ты ей присваиваешь.\\n_Формат: задача — награда/цена_',\n  12: 'Для задачи Craft уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждую неделю), срочная, но неважная.',\n  13: 'Теперь одна задача для трека Social. Напиши задачу и количество XP\\_Gold, которые ты ей присваиваешь.\\nФормат: задача — награда/цена',\n  14: 'И то же для задачи Social. Для задачи Social уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждые 2 недели), срочная, но неважная.',\n  15: 'Теперь одна задача для трека Vitality. Напиши задачу и количество HP, которые ты ей присваиваешь.\\nФормат: задача — награда/цена',\n  16: 'Теперь то же для задачи Vitality. Уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждую неделю), срочная, но неважная.',\n  17: 'Отлично! все задачи записаны 💁‍♀️\\nТеперь назови ежедневную привычку, которую хочешь держать в игре, и награду за выполнение.\\n_Формат: привычка — награда_',\n  18: 'Для первой привычки уточни: К какому треку она относится: 💪 Craft, 🫀 Vitality, 🤝 Social? Можешь ответить своими словами или эмодзи',\n  19: 'Давай ещё одну привычку, но уже в полноценном формате.\\n_Пример: привычка — награда - трек_',\n  20: 'И ещё одну привычку в полноценном формате.\\n_Пример: привычка — награда - трек_',\n  21: 'И еще привычку в полноценном формате, но для нового трека:\\n_Пример: привычка — награда - трек_',\n  22: 'И последняя привычка, тоже в полноценном формате.\\n_Пример: привычка — награда - трек_',\n  23: 'Назови первый KPI на спринт и честную награду за него. *KPI — это повторяющиеся действия, похожие на привычки, но имеющие минимальный порог повторений за заданный промежуток спринта.*\\nФормат: KPI (действие + повтор) — награда\\n_Пример: позвонить родителям - 10 раз - 20_',\n  24: 'Теперь второй KPI на спринт, награду за него, и трек.\\nФормат: KPI — награда — трек\\n_Пример: 10 раз позвонить родителям — 20 — social_',\n  25: 'И третий KPI на спринт, награду за него, и трек.\\nФормат: KPI — награда — трек\\n_Пример: 30 раз приготовить полезный завтрак — 30 — vitality_',\n  26: 'Пора переходить к целям. Эта игра спроектирована так, чтобы выстроить жизнь как систему, помогающую в *достижении цели*.\\nКакую одну цель ты хочешь взять на текущий уровень?',\n  27: 'Как ты поймешь, что цель достигнута? Опиши treasure — желаемый результат, который можно почувствовать или заметить.',\n  28: 'Какой горизонт у этой цели? Сколько дней ты готова считать это текущим уровнем? К какому треку оно относится?\\n_Формат: 45 дней - крафт_',\n  29: 'Теперь переходим к той части игры, которая позволит придать жизни пикантности. *И никому ещё не удавалось избежать этой \"пикантности\" — каждый сталкивается с боссами, тем, что чаще всего сбивает с пути и мешает достигать целей.* Иногда мы называем их чертами характера, иногда — обстоятельствами.\\nГотова приступить к моделированию?',\n  30: 'Условия появления боссов бывают разными — иногда по отдельности, иногда все сразу:\\n• N дней без активности (подозрительная тишина)\\n• невыполненные задачи (просрочки)\\n• показатель энергии HP ниже 40% (болезнь, стресс, перегруз)\\n• случайно, без конкретного условия (форс-мажор)\\n\\nНазови первого босса и цену угрозы, что приносит его появление.\\n_Формат: босс — стоимость урона_',\n  31: 'Назови второго босса и стоимость урона от его действий.\\n_Формат: босс — стоимость_',\n  32: 'Теперь укажи условие появления для каждого босса.\\n_Формат: босс — условие_\\nПример:\\nпрокрастинация — тишина 2 дня\\nперфекционизм — просрочки заданий',\n  33: 'Настроим детектор застоя.\\n\\nЗастой = когда N дней подряд нет нового входящего дохода.\\nВыход из застоя = когда появляется хотя бы X% движения.\\n\\n_Формат: N дней, X% прогресса_\\n_Пример: 30 дней, 5%_',\n  34: 'Сколько XP\\_Gold сгорает при провале попытки? Например: 100, 200 или все. Речь именно о провале консистентности, а не о слабости.',\n  35: '🧬 *Напомню важную вещь: у нас есть два параллельных слоя игры.*\n\n🎮 *Game\\-layer* — спринты, KPI, задачи и цель уровня\\.\n🫀 *Bio\\-layer* — HP, цикл и recovery\\-режимы\\.\n\nBio\\-layer *всегда* накладывается поверх Game\\-layer\\. Это значит, что при низком HP нельзя просто \"взять себя в руки\": работа возможна только при энергии, и игра тоже\\. Твоё здоровье не может быть больше 100% — поэтому 100 = максимально доступное HP в игре\\.\n\n🟡 *RECOVERY\\_ACTIVE* \\(HP < 60\\) — щадящий режим, задачи доступны\\.\n🔴 *RECOVERY\\_PASSIVE* \\(HP < 30\\) — полный отдых, задачи отключены\\.\n\nХочешь задать правила для этих режимов?\nНапиши их или просто: *нет*\\.',\n  36: 'Теперь магазин наград. Назови награды, которые ты хочешь себе разрешать, и их стоимость.\\nФормат: награда — стоимость',\n  37: 'Последний шаг перед контрактом. Назови 4 уровня так, как тебе хочется.',\n  38: 'И еще один важный параметр уровня. Какой ежемесячный Money Net ты считаешь честным порогом для апа этого уровня? Это нужно затем, чтобы engine мог отличать просто движение от реального экономического перехода: финальный ап уровня случается только если Money Net держится на этом пороге 3 месяца подряд.\\nФормат: число в THB за месяц',\n  39: buildContract(draft)\n};\n\nif (!text) {\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', reply_to_user: prompts[state] || prompts[0], onboarding_complete: false } }];\n}\n\nif (state === 0) {\n  if (!yes(text)) {\n    if (hasOnboardingCheckpoint && text) {\n      return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 1, reply_to_user: prompts[1], onboarding_complete: false } }];\n    }\n    return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 0, reply_to_user: introPrompt, onboarding_complete: false } }];\n  }\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 1, reply_to_user: prompts[1], onboarding_complete: false } }];\n}\n\nif (state === 1) {\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 2, reply_to_user: prompts[2], onboarding_complete: false } }];\n}\n\nif (state === 29) {\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 30, reply_to_user: prompts[30], onboarding_complete: false } }];\n}\n\nif (state === 39) {\n  if (contractYes(text)) {\n    return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ACTIVATE', onboarding_complete: false } }];\n  }\n  const backState = detectContractBackState(text);\n  if (backState != null) {\n    return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: backState, reply_to_user: prompts[backState], onboarding_complete: false } }];\n  }\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 39, reply_to_user: buildContract(draft), onboarding_complete: false } }];\n}\n\nconst stateMeta = {\n  2: { key: 'hp_calibration', description: 'Return JSON only: {hp_self_score_10:number|null}' },\n  3: { key: 'bio_cycle_day', description: 'Return JSON only: {cycle_day:number|null,last_menstruation_start:string|null,cycle_day_unknown:boolean}' },\n  4: { key: 'bio_body_state', description: 'Return JSON only: {body_state:string}' },\n  5: { key: 'bio_acute_limits', description: 'Return JSON only: {acute_limits:string}' },\n  6: { key: 'reality_day', description: 'Return JSON only: {baseline_day_description:string}' },\n  7: { key: 'reality_fixed_commitments', description: 'Return JSON only: {fixed_commitments:string}' },\n  8: { key: 'reality_energy_estimate', description: 'Return JSON only: {energy_estimate:string}' },\n  9: { key: 'sprint_length', description: 'Return JSON only: {sprint_days:number|null,use_cycle_default:boolean}' },\n  10: { key: 'sprint_rhythm', description: 'Return JSON only: {working_rhythm:string}' },\n  11: { key: 'task_craft', description: 'Return JSON only: {task:{name:string,value:number,track:\"CRAFT\",resource_type:\"XP\\_Gold\"}}' },\n  12: { key: 'task_flags_craft', description: 'Return JSON only: {is_recurring:boolean,period:string|null,deadline:string|null,is_urgent:boolean,is_important:boolean,priority_note:string,recurrence:string}' },\n  13: { key: 'task_social', description: 'Return JSON only: {task:{name:string,value:number,track:\"SOCIAL\",resource_type:\"XP\\_Gold\"}}' },\n  14: { key: 'task_flags_social', description: 'Return JSON only: {is_recurring:boolean,period:string|null,deadline:string|null,is_urgent:boolean,is_important:boolean,priority_note:string,recurrence:string}' },\n  15: { key: 'task_vitality', description: 'Return JSON only: {task:{name:string,value:number,track:\"VITALITY\",resource_type:\"HP\"}}' },\n  16: { key: 'task_flags_vitality', description: 'Return JSON only: {is_recurring:boolean,period:string|null,deadline:string|null,is_urgent:boolean,is_important:boolean,priority_note:string,recurrence:string}' },\n  17: { key: 'habit_1', description: 'Return JSON only: {habit:{name:string,reward_value:number}}' },\n  18: { key: 'habit_1_rules', description: 'Return JSON only: {track:string}. Map answer to exactly one of 3 values: CRAFT (💪💼💰📊🎯🚀 крафт/крафтовый/craft/деньги/доход/работа/дело/навык/опыт/карьера/бизнес/проект/продажи/контент/обучение/money/skill/work/business/career), VITALITY (🫀💚🏃🧘 виталити/виталь/витали/витальность/vitality/тело/здоровье/восстановление/спорт/сон/движение/питание/медитация/тренировка/энергия/health/body/sleep/exercise/sport), SOCIAL (🤝❤️👥🫂👯‍♀️💃 сошал/соц/социал/социальный/social/отношения/семья/люди/общение/дружба/любовь/партнёр/коллеги/нетворкинг/влияние/relations/family/community/network/friend). Always return the English name in UPPERCASE.' },\n  19: { key: 'habit_2', description: 'Return JSON only: {habit:{name:string,reward_value:number}}' },\n  20: { key: 'habit_2_rules', description: 'Return JSON only: {track:string}. Map answer to exactly one of 3 values: CRAFT (💪💼💰📊🎯🚀 крафт/крафтовый/craft/деньги/доход/работа/дело/навык/опыт/карьера/бизнес/проект/продажи/контент/обучение/money/skill/work/business/career), VITALITY (🫀💚🏃🧘 виталити/виталь/витали/витальность/vitality/тело/здоровье/восстановление/спорт/сон/движение/питание/медитация/тренировка/энергия/health/body/sleep/exercise/sport), SOCIAL (🤝❤️👥🫂👯‍♀️💃 сошал/соц/социал/социальный/social/отношения/семья/люди/общение/дружба/любовь/партнёр/коллеги/нетворкинг/влияние/relations/family/community/network/friend). Always return the English name in UPPERCASE.' },\n  21: { key: 'habit_3', description: 'Return JSON only: {habit:{name:string,reward_value:number}}' },\n  22: { key: 'habit_3_rules', description: 'Return JSON only: {track:string}. Map answer to exactly one of 3 values: CRAFT (💪💼💰📊🎯🚀 крафт/крафтовый/craft/деньги/доход/работа/дело/навык/опыт/карьера/бизнес/проект/продажи/контент/обучение/money/skill/work/business/career), VITALITY (🫀💚🏃🧘 виталити/виталь/витали/витальность/vitality/тело/здоровье/восстановление/спорт/сон/движение/питание/медитация/тренировка/энергия/health/body/sleep/exercise/sport), SOCIAL (🤝❤️👥🫂👯‍♀️💃 сошал/соц/социал/социальный/social/отношения/семья/люди/общение/дружба/любовь/партнёр/коллеги/нетворкинг/влияние/relations/family/community/network/friend). Always return the English name in UPPERCASE.' },\n  23: { key: 'kpi_1', description: 'Return JSON only: {kpi:{name:string,reward_value:number,target_value:string,period:\"SPRINT\"}}' },\n  24: { key: 'kpi_2', description: 'Return JSON only: {kpi:{name:string,reward_value:number,target_value:string,period:\"SPRINT\"}}' },\n  25: { key: 'kpi_3', description: 'Return JSON only: {kpi:{name:string,reward_value:number,target_value:string,period:\"SPRINT\"}}' },\n  26: { key: 'goal_name', description: 'Return JSON only: {goal_name:string}' },\n  27: { key: 'goal_treasure', description: 'Return JSON only: {treasure:string}' },\n  28: { key: 'goal_horizon', description: 'Return JSON only: {horizon_days:number|null, track:string|null}. For track map to CRAFT/VITALITY/SOCIAL same as habit rules.' },\n  30: { key: 'boss_1', description: 'Return JSON only: {boss:{name:string,cost_value:number,resource_type:\"XP\\_Gold\"}}' },\n  31: { key: 'boss_2', description: 'Return JSON only: {boss:{name:string,cost_value:number,resource_type:\"XP\\_Gold\"}}' },\n  32: { key: 'boss_triggers', description: 'Return JSON only: {boss_triggers:string}' },\n  33: { key: 'stuck_rule', description: 'Return JSON only: {y_days:number|null, x_progress:string}. Extract y_days as integer from input like 30 дней, 14 дней, 30 days. Extract x_progress as string like 1%, 5%, format as N%.' },\n  34: { key: 'fail_penalty', description: 'Return JSON only: {fail_penalty_xp_gold:number|null,fail_penalty_mode:string|null}' },\n  35: { key: 'low_hp_rules', description: 'Return JSON only: {rules_enabled:boolean|null,recovery_active_rule:string,recovery_passive_rule:string}' },\n  36: { key: 'shop', description: 'Return JSON only: {shop_items:[{name:string,cost:number,condition:string}]}' },\n  37: { key: 'level_names', description: 'Return JSON only: {level_names:string[]}' },\n  38: { key: 'money_net_threshold', description: 'Return JSON only: {money_net_monthly_threshold:number|null,currency:\"THB\"}' }\n};\n\nconst meta = stateMeta[state];\nif (!meta) {\n  return [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'ASK', current_state: 0, reply_to_user: prompts[0], onboarding_complete: false } }];\n}\n\nconst extractor_prompt = JSON.stringify({\n  flow_kind: 'ONBOARDING',\n  state,\n  state_key: meta.key,\n  instruction: meta.description,\n  user_input: text,\n  current_draft: draft\n}, null, 2);\n\nreturn [{ json: { ...data, flow_kind: 'ONBOARDING', action: 'EXTRACT', extractor_prompt, state_key: meta.key, onboarding_complete: false } }];"
+      },
+      "id": "0ea681e5-c014-4779-9e7b-00035360cabb",
+      "name": "Onboarding FSM Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        45584,
+        21280
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a11231c8-b32e-45bf-a411-93c058de7335",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ASK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ASK"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0b6ba673-d3f5-4285-b082-6592d920a38f",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "EXTRACT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "EXTRACT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cb419491-8674-42e7-8b1f-8245c9993eb6",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ACTIVATE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ACTIVATE"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "beb32f23-3a8c-457d-a1f9-7b396292a647",
+      "name": "Onboarding Action Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        45760,
+        21280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=GAME_LOG!B2:S5000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "e1101130-0618-4fad-8f0b-70c0cddd62da",
+      "name": "Read Onboarding GAME_LOG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        45264,
+        21328
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Normalize Input').first().json || {};\nconst raw = $input.first().json || {};\nconst rows = (((raw.valueRanges || [])[0] || {}).values) || [];\nconst incomingDraft = data.draft_json || {};\nconst incomingHasDraft = Object.keys(incomingDraft).length > 0;\nconst incomingState = Number(data.current_state || 0);\nif (data.restart_onboarding) {\n  return [{ json: { ...data, has_onboarding_checkpoint: false, current_state: 0, draft_json: {} } }];\n}\nif (incomingState !== 0 || incomingHasDraft) {\n  return [{ json: { ...data } }];\n}\nlet checkpoint = null;\nfor (let i = rows.length - 1; i >= 0; i -= 1) {\n  const row = rows[i] || [];\n  const eventType = String(row[1] || '').toUpperCase();\n  const entityId = String(row[4] || '');\n  if (eventType !== 'ONBOARDING_CHECKPOINT') continue;\n  if (entityId !== String(data.session_id || 'default-session')) continue;\n  try {\n    checkpoint = JSON.parse(String(row[16] || '{}'));\n    break;\n  } catch (e) {}\n}\nif (!checkpoint || typeof checkpoint !== 'object') {\n  return [{ json: { ...data, has_onboarding_checkpoint: false } }];\n}\nreturn [{ json: {\n  ...data,\n  has_onboarding_checkpoint: true,\n  current_state: Number(checkpoint.current_state ?? data.current_state ?? 0),\n  draft_json: checkpoint.draft_json && typeof checkpoint.draft_json === 'object' ? checkpoint.draft_json : data.draft_json,\n  intro_style: String(checkpoint.intro_style || data.intro_style || 'coach')\n} }];"
+      },
+      "id": "de82b4f0-e442-4dd7-8aec-2935c129106a",
+      "name": "Hydrate Onboarding Session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        45424,
+        21280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json || {};\nconst draft = data.draft_json || {};\nconst ts = data.ts_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nconst today = data.today_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd');\nconst checkpoint = {\n  session_id: String(data.session_id || 'default-session'),\n  current_state: Number(data.current_state ?? 0),\n  draft_json: draft,\n  intro_style: String(data.intro_style || 'coach'),\n  onboarding_complete: Boolean(data.onboarding_complete),\n  updated_at: ts\n};\nconst row = [\n  ts,\n  'ONBOARDING_CHECKPOINT',\n  'GAME_RULES_WORKFLOW',\n  'ONBOARDING',\n  String(data.session_id || 'default-session'),\n  'Onboarding Session',\n  '',\n  data.onboarding_complete ? 'COMPLETED' : 'IN_PROGRESS',\n  String(data.current_state ?? 0),\n  '',\n  '',\n  '',\n  today,\n  '',\n  '',\n  '',\n  JSON.stringify(checkpoint),\n  String(data.reply_to_user || '').slice(0, 400)\n];\nreturn [{ json: { ...data, onboarding_checkpoint_rows: [row] } }];"
+      },
+      "id": "b26dc2b3-3f02-402b-8805-83fef5be6e77",
+      "name": "Build Onboarding Checkpoint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46000,
+        21360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Build Onboarding Checkpoint\").first().json.onboarding_checkpoint_rows }) }}",
+        "options": {}
+      },
+      "id": "6670f91b-a0c1-4075-97e2-fb16446f930c",
+      "name": "Append Onboarding Checkpoint GAME_LOG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        46240,
+        21360
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=GAME_RULES!B2:X1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "1408edc4-1b0f-45f3-9daa-2fd75ec537b0",
+      "name": "Read Active GAME_RULES",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        45520,
+        21648
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Normalize Input').first().json || {};\nconst raw = $input.first().json || {};\nconst rows = (((raw.valueRanges || [])[0] || {}).values) || [];\nconst text = String(data.user_input || '').trim();\nconst editTarget = String(data.edit_target || '').trim().toLowerCase();\nif (!text && !editTarget) {\n  return [{ json: { ...data, flow_kind: 'RULES_EDIT', action: 'ASK', reply_to_user: 'Напиши, какое правило хочешь изменить: спринт, KPI, привычку, задачу, магазин, цель, уровни или текущего босса.' } }];\n}\nconst activeRows = rows.map((r, idx) => ({\n  row_number: idx + 2,\n  CREATED_TS: r[0] || '', ACTIVE: r[1] || '', RULE_GROUP: r[2] || '', TYPE: r[3] || '', ID_NAME: r[4] || '', RPG_NAME: r[5] || '', TRACK: r[6] || '', VALUE: r[10] || '', RESOURCE_TYPE: r[11] || '', TARGET_VALUE: r[12] || '', PERIOD: r[13] || '', TARGET_JSON: r[14] || '', EFFECT: r[15] || '', EFFECT_TARGET: r[16] || '', TRIGGER_JSON: r[17] || '', DESC: r[19] || '', NOTES: r[22] || ''\n})).filter(r => String(r.ACTIVE).toUpperCase() === 'TRUE');\nconst query = `${editTarget} ${text}`.toLowerCase();\nconst relevant = activeRows.filter(r => {\n  const hay = `${r.RULE_GROUP} ${r.TYPE} ${r.ID_NAME} ${r.RPG_NAME} ${r.NOTES}`.toLowerCase();\n  return !query.trim() || query.split(/\\s+/).filter(Boolean).some(token => hay.includes(token));\n}).slice(0, 25);\nconst summary = relevant.map(r => ({ row_number: r.row_number, rule_group: r.RULE_GROUP, type: r.TYPE, id_name: r.ID_NAME, rpg_name: r.RPG_NAME, notes: r.NOTES }));\nconst extractor_prompt = JSON.stringify({\n  flow_kind: 'RULES_EDIT',\n  user_input: text,\n  edit_target: editTarget,\n  current_rules: summary,\n  instruction: 'Return JSON only with {rule_class:\"BASE_RULE\"|\"TACTICAL_RULE\", target_group:string, target_match_tokens:string[], replacement_items:array, reply_hint:string}.'\n}, null, 2);\nreturn [{ json: { ...data, flow_kind: 'RULES_EDIT', action: 'EXTRACT', extractor_prompt, relevant_rules: summary } }];"
+      },
+      "id": "90575de9-ecf9-47f4-b0fa-70d292b6f42e",
+      "name": "Rules Edit Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        45760,
+        21648
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9192d8ce-6c0d-44b3-adbf-a215216f2932",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "ASK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ASK"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "13c7e1eb-4b6a-4318-8392-893d74fedfc7",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "EXTRACT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "EXTRACT"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "a7238a50-1dbc-467f-8cbb-fe1c03809e52",
+      "name": "Rules Edit Action Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        46000,
+        21648
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "327405ec-9a67-432f-b96f-febced8b2494",
+      "name": "AI Extractor",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        46160,
+        21520
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const upstream = $input.first().json || {};\nlet base = {};\ntry { base = $('Onboarding Action Switch').first().json || {}; } catch (e) {}\nif (!base || !Object.keys(base).length) {\n  try { base = $('Rules Edit Action Switch').first().json || {}; } catch (e) {}\n}\nconst rawContent = upstream.message?.content || upstream.text || upstream.content || upstream.output || '';\nfunction parseJson(text) { try { return JSON.parse(text); } catch { return null; } }\nlet parsed = parseJson(rawContent);\nif (!parsed) {\n  const fenced = String(rawContent).match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i);\n  if (fenced) parsed = parseJson(fenced[1]);\n}\nif (!parsed) {\n  const s = String(rawContent || '');\n  const first = s.indexOf('{');\n  const last = s.lastIndexOf('}');\n  if (first !== -1 && last > first) parsed = parseJson(s.slice(first, last + 1));\n}\nconst rawText = String(rawContent || '').trim();\nconst genericHello = /^hello!?\\s+how can i assist you today\\??$/i.test(rawText);\nconst extracted = parsed && typeof parsed === 'object' ? parsed : {};\nreturn [{ json: {\n  ...base,\n  ai_raw_text: rawText,\n  ai_generic_fallback: genericHello,\n  ai_error_message: genericHello ? 'AI extractor returned a generic fallback instead of JSON.' : '',\n  extracted_json: extracted\n} }];"
+      },
+      "id": "3e14db86-b5b3-4f26-96c2-3670a513581e",
+      "name": "Extractor JSON Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46496,
+        21520
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b0d9156a-9f8f-41f5-8c6c-e3feb7f9bdb4",
+                    "leftValue": "={{ $json.flow_kind }}",
+                    "rightValue": "ONBOARDING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ONBOARDING"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7bf9e00f-debc-4d48-9127-dd7eaf4601f0",
+                    "leftValue": "={{ $json.flow_kind }}",
+                    "rightValue": "RULES_EDIT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "RULES_EDIT"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "a713cd23-c94e-4ab1-b907-f9825cadc08e",
+      "name": "Extract Flow Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        46720,
+        21504
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json || {};\nconst draft = data.draft_json || {};\nconst extracted = data.extracted_json || {};\nconst state = Number(data.current_state || 0);\n\nfunction buildContract(d) {\n  const lines = [];\n  lines.push('Вот что я зафиксировала в твоей игре.');\n  if (d.bio) lines.push(`Состояние на старте: ${d.bio.body_state || d.bio.energy_state || 'зафиксировано'}.`);\n  if (d.sprint?.days) lines.push(`Спринт: ${d.sprint.days} дней.`);\n  if (d.goal?.goal_name) lines.push(`Цель уровня: ${d.goal.goal_name}.`);\n  if (d.goal?.treasure) lines.push(`Treasure: ${d.goal.treasure}.`);\n  if (d.level_rules?.money_net_monthly_threshold != null && d.level_rules?.money_net_monthly_threshold !== '') lines.push(`Money Net для апа уровня: ${d.level_rules.money_net_monthly_threshold} THB в месяц 3 месяца подряд.`);\n  if (Array.isArray(d.level_names) && d.level_names.length) lines.push(`Уровни: ${d.level_names.join(', ')}.`);\n  lines.push('Если все верно, напиши: да, подтверждаю. Если хочешь поправить блок, напиши его название: био, реальность, спринт, задачи, привычки, KPI, цель, боссы, recovery, магазин, уровни или money net.');\n  return lines.join(' ');\n}\n\nfunction promptFor(nextState, d) {\n  const prompts = {\n    3: 'Какой сейчас день цикла? Если не знаешь, напиши дату начала недавней менструации.',\n    4: 'Как сейчас ощущается тело? Можно коротко и по-человечески.',\n    5: 'Есть ли сейчас что-то острое: болезнь, сильная усталость, восстановление после перегруза, боль, недосып?',\n    6: 'Что сейчас занимает большую часть твоих дней? Работа, дом, семья, лечение, учеба — в общих чертах.',\n    7: 'Есть ли у тебя регулярные обязательства, которые почти нельзя сдвигать? Например работа, ребенок, лечение, дорога, учеба.',\n    8: 'После обязательных дел у тебя обычно остается мало, средне или много сил? Можно своими словами.',\n    9: 'Теперь настроим спринт. На сколько дней ты хочешь его взять? Если хочешь, можно оставить длину по циклу.',\n    10: 'Как тебе комфортнее двигаться внутри спринта: равномерно, рывками, спокойно, только по будням, с разгоном в начале?',\n    11: '*Теперь про треки игры*\\n\\nУ нас есть 3 направления:\\n💪 Craft — деньги, опыт, дело и навык;\\n🫀 Vitality — тело, здоровье, самочувствие и восстановление;\\n🤝 Social — отношения, поддержка, любовь, влияние и социальный капитал.\\n\\nНачнём с задач для трека Craft 💪\\nНапиши задачу и количество XP\\\\_Gold, которые ты ей присваиваешь.\\n_Формат: задача — награда/цена_',\n    12: 'Для задачи Craft уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждую неделю), срочная, но неважная.',\n    13: 'Теперь одна задача для трека Social. Напиши задачу и количество XP\\\\_Gold, которые ты ей присваиваешь.\\nФормат: задача — награда/цена',\n    14: 'И то же для задачи Social. Для задачи Social уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждые 2 недели), срочная, но неважная.',\n    15: 'Теперь одна задача для трека Vitality. Напиши задачу и количество HP, которые ты ей присваиваешь.\\nФормат: задача — награда/цена',\n    16: 'Теперь то же для задачи Vitality. Уточни: она разовая или повторяющаяся? И она для тебя важная, срочная или и то и другое?\\nПример: повторяющаяся (каждую неделю), срочная, но неважная.',\n    17: 'Отлично! все задачи записаны 💁‍♀️\\nТеперь назови ежедневную привычку, которую хочешь держать в игре, и награду за выполнение.\\n_Формат: привычка — награда_',\n    18: 'Для первой привычки уточни: К какому треку она относится: 💪 Craft, 🫀 Vitality, 🤝 Social? Можешь ответить своими словами или эмодзи',\n    19: 'Давай ещё одну привычку, но уже в полноценном формате.\\n_Пример: привычка — награда - трек_',\n    20: 'И ещё одну привычку в полноценном формате.\\n_Пример: привычка — награда - трек_',\n    21: 'И еще привычку в полноценном формате, но для нового трека:\\n_Пример: привычка — награда - трек_',\n    22: 'И последняя привычка, тоже в полноценном формате.\\n_Пример: привычка — награда - трек_',\n    23: '*Назови первый KPI на спринт и честную награду за него. KPI — это повторяющиеся действия, похожие на привычки, но имеющие минимальный порог повторений за заданный промежуток спринта.*\\nФормат: KPI (действие + повтор) — награда — трек\\n_Пример: позвонить родителям – 10 раз — 20 — social_',\n    24: 'Теперь второй KPI на спринт, награду за него, и трек.\\nФормат: KPI — награда — трек\\n_Пример: 10 раз позвонить родителям — 20 — social_',\n    25: 'И третий KPI на спринт, награду за него, и трек.\\nФормат: KPI — награда — трек\\n_Пример: 30 раз приготовить полезный завтрак — 30 — vitality_',\n    26: 'Пора переходить к целям. Эта игра спроектирована так, чтобы выстроить жизнь как систему, помогающую в *достижении цели*.\\nКакую одну цель ты хочешь взять на текущий уровень?',\n    27: 'Как ты поймешь, что цель достигнута? Опиши treasure — желаемый результат, который можно почувствовать или заметить.',\n    28: 'Какой горизонт у этой цели? Сколько дней ты готова считать это текущим уровнем? К какому треку оно относится?\\n_Формат: 45 дней - крафт_',\n    29: 'Теперь переходим к той части игры, которая позволит придать жизни пикантности. *И никому ещё не удавалось избежать этой \"пикантности\" — каждый сталкивается с боссами, тем, что чаще всего сбивает с пути и мешает достигать целей.* Иногда мы называем их чертами характера, иногда — обстоятельствами.\\nГотова приступить к моделированию?',\n    30: 'Условия появления боссов бывают разными — иногда по отдельности, иногда все сразу:\\n• N дней без активности (подозрительная тишина)\\n• невыполненные задачи (просрочки)\\n• показатель энергии HP ниже 40% (болезнь, стресс, перегруз)\\n• случайно, без конкретного условия (форс-мажор)\\n\\nНазови первого босса и цену угрозы, что приносит его появление.\\n_Формат: босс — стоимость урона_',\n    31: 'Назови второго босса и стоимость урона от его действий.\\n_Формат: босс — стоимость_',\n    32: 'Теперь укажи условие появления для каждого босса.\\n_Формат: босс — условие_\\nПример:\\nпрокрастинация — тишина 2 дня\\nперфекционизм — просрочки заданий',\n    33: 'Настроим детектор застоя.\\n\\nЗастой = когда N дней подряд нет нового входящего дохода.\\nВыход из застоя = когда появляется хотя бы X% движения.\\n\\n_Формат: N дней, X% прогресса_\\n_Пример: 30 дней, 5%_',\n    34: 'Сколько XP\\\\_Gold сгорает при провале попытки? Например: 100, 200 или все. Речь именно о провале консистентности, а не о слабости.',\n    35: '🧬 *Напомню важную вещь: у нас есть два параллельных слоя игры.*\n\n🎮 *Game\\-layer* — спринты, KPI, задачи и цель уровня\\.\n🫀 *Bio\\-layer* — HP, цикл и recovery\\-режимы\\.\n\nBio\\-layer *всегда* накладывается поверх Game\\-layer\\. Это значит, что при низком HP нельзя просто \"взять себя в руки\": работа возможна только при энергии, и игра тоже\\. Твоё здоровье не может быть больше 100% — поэтому 100 = максимально доступное HP в игре\\.\n\n🟡 *RECOVERY\\_ACTIVE* \\(HP < 60\\) — щадящий режим, задачи доступны\\.\n🔴 *RECOVERY\\_PASSIVE* \\(HP < 30\\) — полный отдых, задачи отключены\\.\n\nХочешь задать правила для этих режимов?\nНапиши их или просто: *нет*\\.',\n    36: 'Теперь магазин наград. Назови награды, которые ты хочешь себе разрешать, и их стоимость.\\nФормат: награда — стоимость',\n    37: 'Последний шаг перед контрактом. Назови 4 уровня так, как тебе хочется.',\n    38: 'И еще один важный параметр уровня. Какой ежемесячный Money Net ты считаешь честным порогом для апа этого уровня? Это нужно затем, чтобы engine мог отличать просто движение от реального экономического перехода: финальный ап уровня случается только если Money Net держится на этом пороге 3 месяца подряд.\\nФормат: число в THB за месяц',\n    39: buildContract(d)\n  };\n  return prompts[nextState] || 'Продолжаем.';\n}\n\nfunction askSame(msg) {\n  return [{ json: { ...data, action: 'ASK', current_state: state, draft_json: draft, reply_to_user: msg, onboarding_complete: false } }];\n}\n\nfunction ensureArray(obj, key) {\n  if (!Array.isArray(obj[key])) obj[key] = [];\n  return obj[key];\n}\n\nfunction parseDashFormat(userText) {\n  const parts = String(userText || '').split(/\\s*[—\\-–]\\s*/);\n  if (parts.length < 2) return null;\n  const name = parts[0].trim();\n  const rawVal = parts[parts.length - 1].trim().replace(/[^\\d.]/g, '');\n  const value = Number(rawVal);\n  if (!name || !Number.isFinite(value)) return null;\n  return { name, value };\n}\nif (state === 2) {\n  let hp = Number(extracted.hp_self_score_10);\n  if (!Number.isFinite(hp)) {\n    const direct = Number(String(data.user_input || '').trim());\n    if (Number.isFinite(direct)) hp = direct;\n  }\n  if (!Number.isFinite(hp) || hp < 0 || hp > 10) return askSame('Нужна оценка от 0 до 10. Можно просто числом: 6.');\n  draft.bio = { ...(draft.bio || {}), hp_self_score_10: hp, hp_current_estimate: hp * 10 };\n}\nif (state === 3) {\n  let cycleDay = extracted.cycle_day ?? null;\n  let lastMens = extracted.last_menstruation_start || '';\n  let cycleUnknown = Boolean(extracted.cycle_day_unknown);\n  if (cycleDay == null && !lastMens) {\n    const userText = String(data.user_input || '').trim();\n    const pureNum = userText.match(/^\\d+$/);\n    if (pureNum) {\n      cycleDay = Number(userText);\n    } else if (/\\d/.test(userText)) {\n      lastMens = userText;\n      cycleUnknown = true;\n    }\n  }\n  if (cycleDay == null && !lastMens) return askSame('Если день цикла неизвестен, просто напиши дату начала недавней менструации.');\n  draft.bio = { ...(draft.bio || {}), cycle_day: cycleDay, last_menstruation_start: lastMens, cycle_day_unknown: cycleUnknown };\n}\nif (state === 4) {\n  if (!String(extracted.body_state || '').trim()) extracted.body_state = String(data.user_input || '').trim();\n  if (!String(extracted.body_state || '').trim()) return askSame('Опиши состояние тела коротко, своими словами.');\n  draft.bio = { ...(draft.bio || {}), body_state: String(extracted.body_state || '').trim() };\n}\nif (state === 5) {\n  if (!String(extracted.acute_limits || '').trim()) extracted.acute_limits = String(data.user_input || '').trim();\n  if (!String(extracted.acute_limits || '').trim()) return askSame('Если ничего острого нет, так и напиши: нет.');\n  draft.bio = { ...(draft.bio || {}), acute_limits: String(extracted.acute_limits || '').trim() };\n}\nif (state === 6) {\n  if (!String(extracted.baseline_day_description || '').trim()) extracted.baseline_day_description = String(data.user_input || '').trim();\n  if (!String(extracted.baseline_day_description || '').trim()) return askSame('Нужна короткая картина дня: работа, дом, семья, лечение, учеба — в общих чертах.');\n  draft.reality = { ...(draft.reality || {}), baseline_day_description: String(extracted.baseline_day_description || '').trim() };\n}\nif (state === 7) {\n  if (!String(extracted.fixed_commitments || '').trim()) extracted.fixed_commitments = String(data.user_input || '').trim();\n  if (!String(extracted.fixed_commitments || '').trim()) return askSame('Если ничего жестко фиксированного нет, так и напиши: нет.');\n  draft.reality = { ...(draft.reality || {}), fixed_commitments: String(extracted.fixed_commitments || '').trim() };\n}\nif (state === 8) {\n  if (!String(extracted.energy_estimate || '').trim()) extracted.energy_estimate = String(data.user_input || '').trim();\n  if (!String(extracted.energy_estimate || '').trim()) return askSame('Можно очень просто: мало, средне, много — или своими словами.');\n  draft.reality = { ...(draft.reality || {}), energy_estimate: String(extracted.energy_estimate || '').trim() };\n}\nif (state === 9) {\n  let days = Number(extracted.sprint_days);\n  const userText = String(data.user_input || '').trim();\n  // Числовой fallback: \"28 дней\" → 28\n  if (!Number.isFinite(days) || days <= 0) {\n    const direct = Number(userText.replace(/[^\\d.]/g, ''));\n    if (Number.isFinite(direct) && direct > 0) days = direct;\n  }\n  // Текстовый fallback: \"по циклу\", \"как цикл\", \"цикл\" и т.д.\n  const isCycle = Boolean(extracted.use_cycle_default) || /(по.?цикл|как.?цикл|цикл|cycle)/i.test(userText);\n  if ((!Number.isFinite(days) || days <= 0) && !isCycle) return askSame('Нужна длина спринта в днях или ответ в духе \"по циклу\".');\n  draft.sprint = { ...(draft.sprint || {}), days: Number.isFinite(days) && days > 0 ? days : 'CYCLE', use_cycle_default: isCycle };\n}\nif (state === 10) {\n  if (!String(extracted.working_rhythm || '').trim()) extracted.working_rhythm = String(data.user_input || '').trim();\n  if (!String(extracted.working_rhythm || '').trim()) return askSame('Опиши ритм коротко: равномерно, рывками, спокойно, по будням и так далее.');\n  draft.sprint = { ...(draft.sprint || {}), working_rhythm: String(extracted.working_rhythm || '').trim() };\n}\nif (state === 11) {\n  const lines11 = String(data.user_input || '').split('\\n').map(s => s.trim()).filter(Boolean);\n  let craftTasks = [];\n  for (const line of lines11) {\n    const fb = parseDashFormat(line);\n    if (fb && fb.name && Number.isFinite(fb.value) && fb.value > 0) {\n      craftTasks.push({ name: fb.name, value: fb.value, track: 'CRAFT', resource_type: 'XP\\\\_Gold' });\n    }\n  }\n  if (!craftTasks.length && extracted.task) {\n    const t = extracted.task || {};\n    if (String(t.name || '').trim() && Number.isFinite(Number(t.value)) && Number(t.value) > 0) {\n      craftTasks.push({ name: String(t.name).trim(), value: Number(t.value), track: 'CRAFT', resource_type: 'XP\\\\_Gold' });\n    }\n  }\n  if (!craftTasks.length) return askSame('Нужна задача для Craft и число XP\\\\_Gold. Формат: задача — награда/цена');\n  draft.craft_task_queue = craftTasks;\n  draft.craft_task_idx = 0;\n  const firstName = craftTasks[0].name;\n  const firstPrompt = `Отлично, теперь мы разберём твои задачи 💁\\u200d♀️\\nЗадачи бывают *срочные / несрочные*, *важные / неважные* и *разовые / повторяющиеся*.\\n\\nИногда привычки на ежедневной основе тоже причисляют к задачам, но мы про привычки поговорим отдельно — ежедневные привычки оставим на потом.\\n\\n*Давай определим параметры задач.*\\nДля задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', firstName);\n  return [{ json: { ...data, action: 'ASK', current_state: 12, draft_json: draft,\n    reply_to_user: firstPrompt, onboarding_complete: false } }];\n}\nif (state === 12) {\n  const q12 = draft.craft_task_queue || [];\n  const qi12 = Number(draft.craft_task_idx ?? 0);\n  const qt12 = q12[qi12];\n  if (!qt12) return askSame('Нет задачи для уточнения. Напиши задачи заново.');\n  let recurrence = String(extracted.recurrence || extracted.period || '').trim();\n  let priority = String(extracted.priority_note || '').trim();\n  let deadline = String(extracted.deadline || '').trim();\n  let isRecurring = extracted.is_recurring;\n  // Fallback: parse raw text\n  if (!recurrence && !priority && !deadline) {\n    const raw = String(data.user_input || '').trim();\n    if (raw) {\n      const parts = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);\n      const isRec = (s) => /(повтор|раз в|еженедел|ежедн|каждый|каждую|еженед|ежемес|ежекварт|weekly|daily|monthly)/i.test(s);\n      const isPri = (s) => /(важн|срочн|неважн|несрочн)/i.test(s);\n      const isDate = (s) => /\\d{1,2}[./]\\d{1,2}[./]\\d{2,4}/.test(s);\n      recurrence = parts.filter(s => isRec(s)).join(', ');\n      priority = parts.filter(s => isPri(s)).join(', ');\n      deadline = parts.filter(s => isDate(s)).join(', ');\n      if (!recurrence && !priority && !deadline) priority = raw;\n    }\n    if (!recurrence && !priority && !deadline) return askSame('Нужно уточнить параметры задачи.');\n  }\n  draft.craft_task_queue[qi12] = { ...qt12, recurrence, priority_note: priority, deadline, is_recurring: isRecurring };\n  draft.craft_task_idx = qi12 + 1;\n  if (qi12 + 1 < q12.length) {\n    const nxt12 = q12[qi12 + 1];\n    const shortQ = `Для задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', nxt12.name);\n    return [{ json: { ...data, action: 'ASK', current_state: 12, draft_json: draft,\n      reply_to_user: shortQ, onboarding_complete: false } }];\n  }\n  draft.task_examples = ensureArray(draft, 'task_examples');\n  draft.craft_task_queue.forEach((t, i) => { draft.task_examples[i] = t; });\n  draft.craft_count = draft.craft_task_queue.length;\n  return [{ json: { ...data, action: 'ASK', current_state: 13, draft_json: draft,\n    reply_to_user: promptFor(13, draft), onboarding_complete: false } }];\n}\nif (state === 13) {\n  const lines13 = String(data.user_input || '').split('\\n').map(s => s.trim()).filter(Boolean);\n  let socialTasks = [];\n  for (const line of lines13) {\n    const fb = parseDashFormat(line);\n    if (fb && fb.name && Number.isFinite(fb.value) && fb.value > 0) {\n      socialTasks.push({ name: fb.name, value: fb.value, track: 'SOCIAL', resource_type: 'XP\\\\_Gold' });\n    }\n  }\n  if (!socialTasks.length && extracted.task) {\n    const t = extracted.task || {};\n    if (String(t.name || '').trim() && Number.isFinite(Number(t.value)) && Number(t.value) > 0) {\n      socialTasks.push({ name: String(t.name).trim(), value: Number(t.value), track: 'SOCIAL', resource_type: 'XP\\\\_Gold' });\n    }\n  }\n  if (!socialTasks.length) return askSame('Нужна задача для Social и число XP\\\\_Gold. Формат: задача — награда/цена');\n  draft.social_task_queue = socialTasks;\n  draft.social_task_idx = 0;\n  const firstName13 = socialTasks[0].name;\n  const q13Prompt = `Для задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', firstName13);\n  return [{ json: { ...data, action: 'ASK', current_state: 14, draft_json: draft,\n    reply_to_user: q13Prompt, onboarding_complete: false } }];\n}\nif (state === 14) {\n  const q14 = draft.social_task_queue || [];\n  const qi14 = Number(draft.social_task_idx ?? 0);\n  const qt14 = q14[qi14];\n  if (!qt14) return askSame('Нет задачи для уточнения. Напиши задачи заново.');\n  let recurrence = String(extracted.recurrence || extracted.period || '').trim();\n  let priority = String(extracted.priority_note || '').trim();\n  let deadline = String(extracted.deadline || '').trim();\n  let isRecurring = extracted.is_recurring;\n  // Fallback: parse raw text\n  if (!recurrence && !priority && !deadline) {\n    const raw = String(data.user_input || '').trim();\n    if (raw) {\n      const parts = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);\n      const isRec = (s) => /(повтор|раз в|еженедел|ежедн|каждый|каждую|еженед|ежемес|ежекварт|weekly|daily|monthly)/i.test(s);\n      const isPri = (s) => /(важн|срочн|неважн|несрочн)/i.test(s);\n      const isDate = (s) => /\\d{1,2}[./]\\d{1,2}[./]\\d{2,4}/.test(s);\n      recurrence = parts.filter(s => isRec(s)).join(', ');\n      priority = parts.filter(s => isPri(s)).join(', ');\n      deadline = parts.filter(s => isDate(s)).join(', ');\n      if (!recurrence && !priority && !deadline) priority = raw;\n    }\n    if (!recurrence && !priority && !deadline) return askSame('Нужно уточнить параметры задачи.');\n  }\n  draft.social_task_queue[qi14] = { ...qt14, recurrence, priority_note: priority, deadline, is_recurring: isRecurring };\n  draft.social_task_idx = qi14 + 1;\n  if (qi14 + 1 < q14.length) {\n    const nxt14 = q14[qi14 + 1];\n    const shortQ = `Для задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', nxt14.name);\n    return [{ json: { ...data, action: 'ASK', current_state: 14, draft_json: draft,\n      reply_to_user: shortQ, onboarding_complete: false } }];\n  }\n  const cCount14 = Number(draft.craft_count ?? 0);\n  draft.task_examples = ensureArray(draft, 'task_examples');\n  draft.social_task_queue.forEach((t, i) => { draft.task_examples[cCount14 + i] = t; });\n  draft.social_count = draft.social_task_queue.length;\n  return [{ json: { ...data, action: 'ASK', current_state: 15, draft_json: draft,\n    reply_to_user: promptFor(15, draft), onboarding_complete: false } }];\n}\nif (state === 15) {\n  const lines15 = String(data.user_input || '').split('\\n').map(s => s.trim()).filter(Boolean);\n  let vitTasks = [];\n  for (const line of lines15) {\n    const fb = parseDashFormat(line);\n    if (fb && fb.name && Number.isFinite(fb.value) && fb.value > 0) {\n      vitTasks.push({ name: fb.name, value: fb.value, track: 'VITALITY', resource_type: 'HP' });\n    }\n  }\n  if (!vitTasks.length && extracted.task) {\n    const t = extracted.task || {};\n    if (String(t.name || '').trim() && Number.isFinite(Number(t.value)) && Number(t.value) > 0) {\n      vitTasks.push({ name: String(t.name).trim(), value: Number(t.value), track: 'VITALITY', resource_type: 'HP' });\n    }\n  }\n  if (!vitTasks.length) return askSame('Нужна задача для Vitality и число HP. Формат: задача — награда/цена');\n  draft.vitality_task_queue = vitTasks;\n  draft.vitality_task_idx = 0;\n  const firstName15 = vitTasks[0].name;\n  const q15Prompt = `Для задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', firstName15);\n  return [{ json: { ...data, action: 'ASK', current_state: 16, draft_json: draft,\n    reply_to_user: q15Prompt, onboarding_complete: false } }];\n}\nif (state === 16) {\n  const q16 = draft.vitality_task_queue || [];\n  const qi16 = Number(draft.vitality_task_idx ?? 0);\n  const qt16 = q16[qi16];\n  if (!qt16) return askSame('Нет задачи для уточнения. Напиши задачи заново.');\n  let recurrence = String(extracted.recurrence || extracted.period || '').trim();\n  let priority = String(extracted.priority_note || '').trim();\n  let deadline = String(extracted.deadline || '').trim();\n  let isRecurring = extracted.is_recurring;\n  // Fallback: parse raw text\n  if (!recurrence && !priority && !deadline) {\n    const raw = String(data.user_input || '').trim();\n    if (raw) {\n      const parts = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);\n      const isRec = (s) => /(повтор|раз в|еженедел|ежедн|каждый|каждую|еженед|ежемес|ежекварт|weekly|daily|monthly)/i.test(s);\n      const isPri = (s) => /(важн|срочн|неважн|несрочн)/i.test(s);\n      const isDate = (s) => /\\d{1,2}[./]\\d{1,2}[./]\\d{2,4}/.test(s);\n      recurrence = parts.filter(s => isRec(s)).join(', ');\n      priority = parts.filter(s => isPri(s)).join(', ');\n      deadline = parts.filter(s => isDate(s)).join(', ');\n      if (!recurrence && !priority && !deadline) priority = raw;\n    }\n    if (!recurrence && !priority && !deadline) return askSame('Нужно уточнить параметры задачи.');\n  }\n  draft.vitality_task_queue[qi16] = { ...qt16, recurrence, priority_note: priority, deadline, is_recurring: isRecurring };\n  draft.vitality_task_idx = qi16 + 1;\n  if (qi16 + 1 < q16.length) {\n    const nxt16 = q16[qi16 + 1];\n    const shortQ = `Для задачи \"{name}\": она разовая или повторяющаяся?\\n\\n• если разовая — к какому числу она должна быть сделана? она срочная или несрочная?\\n• если повторяющаяся — с какой периодичностью: еженедельно, каждые 2 недели, ежемесячно, каждые 2 месяца, ежеквартально, каждые полгода?\\n\\n_Пример: \"важная, разовая, срочная, к 01.05.2026\" или \"неважная, повторяющаяся, еженедельно\"_`.replace('{name}', nxt16.name);\n    return [{ json: { ...data, action: 'ASK', current_state: 16, draft_json: draft,\n      reply_to_user: shortQ, onboarding_complete: false } }];\n  }\n  const cCount16 = Number(draft.craft_count ?? 0);\n  const sCount16 = Number(draft.social_count ?? 0);\n  draft.task_examples = ensureArray(draft, 'task_examples');\n  draft.vitality_task_queue.forEach((t, i) => { draft.task_examples[cCount16 + sCount16 + i] = t; });\n  return [{ json: { ...data, action: 'ASK', current_state: 17, draft_json: draft,\n    reply_to_user: promptFor(17, draft), onboarding_complete: false } }];\n}\nif (state === 17) {\n  let habit = extracted.habit || {};\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) habit = { name: fb.name, reward_value: fb.value };\n  }\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) return askSame('Нужна привычка и награда за нее. Формат: привычка — награда');\n  draft.habits = ensureArray(draft, 'habits');\n  draft.habits[0] = { name: String(habit.name).trim(), reward_value: Number(habit.reward_value) };\n}\nif (state === 18) {\n  if (!draft.habits?.[0]) return askSame('Сначала нужна сама первая привычка.');\n  let track = String(extracted.track || '').trim().toUpperCase();\n  // Fallback: map emojis and words to track names\n  if (!track) {\n    const raw = String(data.user_input || '').trim();\n    const isCraft = /craft|💪|💼|💰|📊|🎯|🚀|📈|🛠|💡|крафт|деньги|доход|заработ|работ|дело|навык|опыт|карьер|бизнес|проект|продаж|маркетинг|контент|обучени|учеба|профессиj|творчеств|создани|money|income|skill|work|business|career|project|sales|learning|creative/i.test(raw);\n    const isVit   = /vitality|🫀|💚|🏃|🧘|🏋|🌿|виталит|vital|тело|здоровь|восстановл|спорт|сон|физ|движени|питани|медитац|йога|тренировк|энерги|здоров|самочувств|health|body|sleep|exercise|sport|recovery/i.test(raw);\n    const isSoc   = /social|🤝|❤|👥|🫂|💕|🌐|👯|💃|социал|отношени|семь|люд|общени|связ|поддержк|дружб|любовь|партнер|родител|дет|коллег|нетворк|влияни|сообществ|community|relation|network|friend|love|family|people/i.test(raw);\n    if (isCraft) track = 'CRAFT';\n    else if (isVit) track = 'VITALITY';\n    else if (isSoc) track = 'SOCIAL';\n    else if (raw) track = raw.toUpperCase().slice(0, 20);\n  }\n  if (!track) return askSame('Укажи трек: 💪 Craft, 🫀 Vitality или 🤝 Social.');\n  draft.habits[0] = { ...draft.habits[0], track };\n}\nif (state === 19) {\n  let habit = extracted.habit || {};\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) habit = { name: fb.name, reward_value: fb.value };\n  }\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) return askSame('Нужна привычка и награда за нее. Формат: привычка — награда');\n  draft.habits = ensureArray(draft, 'habits');\n  draft.habits[1] = { name: String(habit.name).trim(), reward_value: Number(habit.reward_value) };\n}\nif (state === 20) {\n  if (!draft.habits?.[1]) return askSame('Сначала нужна сама вторая привычка.');\n  let track = String(extracted.track || '').trim().toUpperCase();\n  // Fallback: map emojis and words to track names\n  if (!track) {\n    const raw = String(data.user_input || '').trim();\n    const isCraft = /craft|💪|💼|💰|📊|🎯|🚀|📈|🛠|💡|крафт|деньги|доход|заработ|работ|дело|навык|опыт|карьер|бизнес|проект|продаж|маркетинг|контент|обучени|учеба|профессиj|творчеств|создани|money|income|skill|work|business|career|project|sales|learning|creative/i.test(raw);\n    const isVit   = /vitality|🫀|💚|🏃|🧘|🏋|🌿|виталит|vital|тело|здоровь|восстановл|спорт|сон|физ|движени|питани|медитац|йога|тренировк|энерги|здоров|самочувств|health|body|sleep|exercise|sport|recovery/i.test(raw);\n    const isSoc   = /social|🤝|❤|👥|🫂|💕|🌐|👯|💃|социал|отношени|семь|люд|общени|связ|поддержк|дружб|любовь|партнер|родител|дет|коллег|нетворк|влияни|сообществ|community|relation|network|friend|love|family|people/i.test(raw);\n    if (isCraft) track = 'CRAFT';\n    else if (isVit) track = 'VITALITY';\n    else if (isSoc) track = 'SOCIAL';\n    else if (raw) track = raw.toUpperCase().slice(0, 20);\n  }\n  if (!track) return askSame('Укажи трек: 💪 Craft, 🫀 Vitality или 🤝 Social.');\n  draft.habits[1] = { ...draft.habits[1], track };\n}\nif (state === 21) {\n  let habit = extracted.habit || {};\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) habit = { name: fb.name, reward_value: fb.value };\n  }\n  if (!String(habit.name || '').trim() || !Number.isFinite(Number(habit.reward_value))) return askSame('Нужна привычка и награда за нее. Формат: привычка — награда');\n  draft.habits = ensureArray(draft, 'habits');\n  draft.habits[2] = { name: String(habit.name).trim(), reward_value: Number(habit.reward_value) };\n}\nif (state === 22) {\n  if (!draft.habits?.[2]) return askSame('Сначала нужна сама третья привычка.');\n  let track = String(extracted.track || '').trim().toUpperCase();\n  // Fallback: map emojis and words to track names\n  if (!track) {\n    const raw = String(data.user_input || '').trim();\n    const isCraft = /craft|💪|💼|💰|📊|🎯|🚀|📈|🛠|💡|крафт|деньги|доход|заработ|работ|дело|навык|опыт|карьер|бизнес|проект|продаж|маркетинг|контент|обучени|учеба|профессиj|творчеств|создани|money|income|skill|work|business|career|project|sales|learning|creative/i.test(raw);\n    const isVit   = /vitality|🫀|💚|🏃|🧘|🏋|🌿|виталит|vital|тело|здоровь|восстановл|спорт|сон|физ|движени|питани|медитац|йога|тренировк|энерги|здоров|самочувств|health|body|sleep|exercise|sport|recovery/i.test(raw);\n    const isSoc   = /social|🤝|❤|👥|🫂|💕|🌐|👯|💃|социал|отношени|семь|люд|общени|связ|поддержк|дружб|любовь|партнер|родител|дет|коллег|нетворк|влияни|сообществ|community|relation|network|friend|love|family|people/i.test(raw);\n    if (isCraft) track = 'CRAFT';\n    else if (isVit) track = 'VITALITY';\n    else if (isSoc) track = 'SOCIAL';\n    else if (raw) track = raw.toUpperCase().slice(0, 20);\n  }\n  if (!track) return askSame('Укажи трек: 💪 Craft, 🫀 Vitality или 🤝 Social.');\n  draft.habits[2] = { ...draft.habits[2], track };\n}\nif (state === 23) {\n  let kpi = extracted.kpi || {};\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) kpi = { name: fb.name, reward_value: fb.value, target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n  }\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) return askSame('Нужен KPI и награда за него. Формат: KPI — награда');\n  draft.kpis = ensureArray(draft, 'kpis');\n  draft.kpis[0] = { name: String(kpi.name).trim(), reward_value: Number(kpi.reward_value), target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n}\nif (state === 24) {\n  let kpi = extracted.kpi || {};\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) kpi = { name: fb.name, reward_value: fb.value, target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n  }\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) return askSame('Нужен KPI и награда за него. Формат: KPI — награда');\n  draft.kpis = ensureArray(draft, 'kpis');\n  draft.kpis[1] = { name: String(kpi.name).trim(), reward_value: Number(kpi.reward_value), target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n}\nif (state === 25) {\n  let kpi = extracted.kpi || {};\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) kpi = { name: fb.name, reward_value: fb.value, target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n  }\n  if (!String(kpi.name || '').trim() || !Number.isFinite(Number(kpi.reward_value))) return askSame('Нужен KPI и награда за него. Формат: KPI — награда');\n  draft.kpis = ensureArray(draft, 'kpis');\n  draft.kpis[2] = { name: String(kpi.name).trim(), reward_value: Number(kpi.reward_value), target_value: String(kpi.target_value || '').trim(), period: 'SPRINT' };\n}\nif (state === 26) {\n  if (!String(extracted.goal_name || '').trim()) extracted.goal_name = String(data.user_input || '').trim();\n  if (!String(extracted.goal_name || '').trim()) return askSame('Нужна одна цель текущего уровня.');\n  draft.goal = { ...(draft.goal || {}), goal_name: String(extracted.goal_name).trim() };\n}\nif (state === 27) {\n  if (!String(extracted.treasure || '').trim()) extracted.treasure = String(data.user_input || '').trim();\n  if (!String(extracted.treasure || '').trim()) return askSame('Опиши treasure — как ты поймешь, что цель достигнута.');\n  draft.goal = { ...(draft.goal || {}), treasure: String(extracted.treasure).trim() };\n}\nif (state === 28) {\n  let horizon = Number(extracted.horizon_days);\n  if (!Number.isFinite(horizon) || horizon <= 0) {\n    const directMatch = String(data.user_input || '').match(/(\\d+)/);\n    if (directMatch) horizon = Number(directMatch[1]);\n  }\n  if (!Number.isFinite(horizon) || horizon <= 0) return askSame('Нужен горизонт в днях.');\n  const goalTrack = extracted.track || null;\n  draft.goal = { ...(draft.goal || {}), horizon_days: horizon, track: goalTrack };\n}\nif (state === 30) {\n  let boss = extracted.boss || {};\n  if (!String(boss.name || '').trim() || !Number.isFinite(Number(boss.cost_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) boss = { name: fb.name, cost_value: fb.value, resource_type: 'XP\\\\_Gold' };\n  }\n  if (!String(boss.name || '').trim() || !Number.isFinite(Number(boss.cost_value))) return askSame('Нужен босс и его стоимость. Формат: босс — стоимость');\n  draft.bosses = ensureArray(draft, 'bosses');\n  draft.bosses[0] = { name: String(boss.name).trim(), cost_value: Number(boss.cost_value), resource_type: 'XP\\\\_Gold' };\n}\nif (state === 31) {\n  let boss = extracted.boss || {};\n  if (!String(boss.name || '').trim() || !Number.isFinite(Number(boss.cost_value))) {\n    const fb = parseDashFormat(data.user_input);\n    if (fb) boss = { name: fb.name, cost_value: fb.value, resource_type: 'XP\\\\_Gold' };\n  }\n  if (!String(boss.name || '').trim() || !Number.isFinite(Number(boss.cost_value))) return askSame('Нужен босс и его стоимость. Формат: босс — стоимость');\n  draft.bosses = ensureArray(draft, 'bosses');\n  draft.bosses[1] = { name: String(boss.name).trim(), cost_value: Number(boss.cost_value), resource_type: 'XP\\\\_Gold' };\n}\nif (state === 32) {\n  if (!String(extracted.boss_triggers || '').trim()) extracted.boss_triggers = String(data.user_input || '').trim();\n  if (!String(extracted.boss_triggers || '').trim()) return askSame('Опиши коротко, как боссы проявляются и что их запускает.');\n  draft.boss_triggers = String(extracted.boss_triggers).trim();\n}\nif (state === 33) {\n  const raw33 = String(data.user_input || '').trim();\n  let y = Number(extracted.y_days);\n  if (!Number.isFinite(y) || y <= 0) {\n    const yM = raw33.match(/(\\d+)\\s*(дн|day)/i) || raw33.match(/(\\d+)/);\n    if (yM) y = Number(yM[1]);\n  }\n  let x = String(extracted.x_progress || '').trim();\n  if (!x) {\n    const xM = raw33.match(/(\\d+[.,]?\\d*)\\s*(%|процент)/i);\n    if (xM) x = xM[1] + '%';\n  }\n  if (!x) {\n    const parts = raw33.split(/[,;]/);\n    if (parts.length >= 2) x = parts[parts.length - 1].trim();\n  }\n  if (!Number.isFinite(y) || y <= 0 || !x) return askSame('Нужны оба параметра: через сколько дней и какой прогресс считать уже не застоем.');\n  draft.stuck_rule = { y_days: y, x_progress: x };\n}\nif (state === 34) {\n  const rawPenalty = String(extracted.fail_penalty_mode || extracted.fail_penalty_xp_gold || data.user_input || '').trim();\n  if (/^(все|всё|all)$/i.test(rawPenalty)) {\n    draft.fail_penalty_xp_gold = 'ALL';\n  } else {\n    const penalty = Number(String(extracted.fail_penalty_xp_gold ?? rawPenalty).replace(/[^\\d.-]/g, ''));\n    if (!Number.isFinite(penalty)) return askSame('Нужен штраф в формате числа или слово все. Например: 100, 200 или все.');\n    draft.fail_penalty_xp_gold = penalty;\n  }\n}\nif (state === 35) {\n  const raw35 = String(data.user_input || '').trim();\n  const isNo = /^(нет|no|не надо|не нужно|пропустить|skip)$/i.test(raw35);\n  if (extracted.rules_enabled === false || isNo) {\n    draft.hp_rules = { custom_enabled: false, recovery_active_rule: '', recovery_passive_rule: '' };\n  } else {\n    let active = String(extracted.recovery_active_rule || '').trim();\n    let passive = String(extracted.recovery_passive_rule || '').trim();\n    if (!active) {\n      const mA = raw35.match(/RECOVERY[_\\s]ACTIVE[:\\s\\-]+([^\\n]+)/i);\n      if (mA) active = mA[1].trim();\n    }\n    if (!passive) {\n      const mP = raw35.match(/RECOVERY[_\\s]PASSIVE[:\\s\\-]+([^\\n]+)/i);\n      if (mP) passive = mP[1].trim();\n    }\n    if (!active && !passive) return askSame('Если хочешь ввести правила recovery, напиши их сразу для RECOVERY\\\\_ACTIVE и/или RECOVERY\\\\_PASSIVE. Если не хочешь — просто напиши: нет.');\n    draft.hp_rules = { custom_enabled: true, recovery_active_rule: active, recovery_passive_rule: passive };\n  }\n}\nif (state === 36) {\n  const items = Array.isArray(extracted.shop_items) ? extracted.shop_items.filter(i => i && String(i.name || '').trim()) : [];\n  if (!items.length) return askSame('Нужна хотя бы одна награда с ценой.');\n  draft.shop_items = items.map(i => ({ name: String(i.name).trim(), cost: Number(i.cost || 0), condition: String(i.condition || '').trim() }));\n}\nif (state === 37) {\n  const levels = Array.isArray(extracted.level_names) ? extracted.level_names.map(v => String(v || '').trim()).filter(Boolean) : [];\n  if (levels.length < 4) return askSame('Нужны 4 названия уровней.');\n  draft.level_names = levels.slice(0, 4);\n}\nif (state === 38) {\n  let threshold = Number(extracted.money_net_monthly_threshold);\n  if (!Number.isFinite(threshold) || threshold <= 0) {\n    const direct = Number(String(data.user_input || '').replace(/[^\\d.]/g, ''));\n    if (Number.isFinite(direct) && direct > 0) threshold = direct;\n  }\n  if (!Number.isFinite(threshold) || threshold <= 0) return askSame('Нужен один честный порог Money Net в THB за месяц. Можно просто числом.');\n  draft.level_rules = {\n    ...(draft.level_rules || {}),\n    money_net_monthly_threshold: threshold,\n    money_net_currency: 'THB',\n    money_net_window_months: Number(draft.level_rules?.money_net_window_months || 3) || 3\n  };\n}\n\nconst nextState = Math.min(state + 1, 39);\nreturn [{ json: { ...data, action: 'ASK', current_state: nextState, draft_json: draft, reply_to_user: promptFor(nextState, draft), onboarding_complete: false } }];"
+      },
+      "id": "9b0ca537-7e38-4976-8ca9-9928811adecd",
+      "name": "Onboarding Draft Merge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46928,
+        21392
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Onboarding FSM Router').first().json || $input.first().json || {};\nconst draft = data.draft_json || {};\nconst ts = data.ts_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nfunction slug(v) { return String(v || '').toLowerCase().normalize('NFKD').replace(/[^\\p{L}\\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'item'; }\nfunction jsonString(v) { return JSON.stringify(v || {}, null, 0); }\nlet sortOrder = 1;\nfunction ruleRow({rule_group, type, id_name, rpg_name, track='', stage_scope='', level_scope='', attempt_scope='', value='', resource_type='', target_value='', period='', target_json='', effect='', effect_target='', trigger_json='', flavor_text='', desc='', source='GAME_RULES_WORKFLOW', notes=''}) {\n  return [ts, true, rule_group, type, id_name, rpg_name, track, stage_scope, level_scope, attempt_scope, value, resource_type, target_value, period, target_json, effect, effect_target, trigger_json, flavor_text, desc, source, sortOrder++, notes];\n}\nfunction logRow({event_type, entity_group, entity_id='', entity_name='', track='', status='', value='', resource_type='', delta='', period='', date_ref=data.today_bkk, stage_at_time='EARLY', level_at_time='1', attempt_id='1', context_json='', comment=''}) {\n  return [ts, event_type, 'GAME_RULES_WORKFLOW', entity_group, entity_id, entity_name, track, status, value, resource_type, delta, period, date_ref, stage_at_time, level_at_time, attempt_id, context_json, comment];\n}\nconst rules = [];\nconst logs = [];\n\nrules.push(ruleRow({ rule_group:'SYSTEM', type:'BASE_RULE', id_name:'resource_model', rpg_name:'Resource Model', value:'XP_Gold | HP | XP_TOTAL', target_json: jsonString({xp_total_formula:'0.5*xp_gold_gains + 0.5*hp_positive_gains', stage_xp_formula:'xp_total - xp_at_attempt_start'}), desc:'Каноническая ресурсная модель и формула stage XP', notes:'BASE_RULE:RESOURCE_MODEL' }));\nrules.push(ruleRow({ rule_group:'ATTEMPT', type:'BASE_RULE', id_name:'fail_threshold', rpg_name:'Attempt Fail Threshold', value:'5', resource_type:'DAYS', target_value:'5', period:'DAY', trigger_json: jsonString({event:'silence'}), desc:'5 дней тишины = FAILED', notes:'BASE_RULE:ATTEMPT_FAIL' }));\nrules.push(ruleRow({ rule_group:'ATTEMPT', type:'BASE_RULE', id_name:'fail_penalty_xp_gold', rpg_name:'Fail Penalty XP_Gold', value:draft.fail_penalty_xp_gold === 'ALL' ? '' : String(draft.fail_penalty_xp_gold ?? ''), resource_type:'XP_Gold', target_json: jsonString({ mode: draft.fail_penalty_xp_gold === 'ALL' ? 'all' : 'fixed' }), desc:'Штраф за системный провал', notes:'BASE_RULE:FAIL_PENALTY' }));\nrules.push(ruleRow({ rule_group:'STAGE', type:'BASE_RULE', id_name:'stage_thresholds', rpg_name:'Stage Thresholds', target_json: jsonString({early:[0,499], mid:[500,3499], late:[3500,null]}), desc:'Пороги EARLY/MID/LATE внутри одного attempt', notes:'BASE_RULE:STAGE' }));\nrules.push(ruleRow({ rule_group:'STUCK', type:'BASE_RULE', id_name:'stuck_rule', rpg_name:'Stuck Rule', value:String(draft.stuck_rule?.x_progress ?? ''), resource_type:'MONEY_PROGRESS', target_value:String(draft.stuck_rule?.y_days ?? ''), period:'DAY', trigger_json: jsonString({requires_actions:['TASK','KPI'], target_scope:'CURRENT_LEVEL_GOAL'}), desc:'Нет денежного прогресса X за Y дней при наличии действий по цели', notes:'BASE_RULE:STUCK' }));\nrules.push(ruleRow({ rule_group:'ENERGY', type:'BASE_RULE', id_name:'two_of_three_rule', rpg_name:'2 of 3 Energy Rule', target_json: jsonString({sleep_food_water:'consistency_attempt'}), desc:'2 из 3: сон/еда/вода влияет на consistency attempt', notes:'BASE_RULE:ENERGY' }));\nrules.push(ruleRow({ rule_group:'RECOVERY', type:'BASE_RULE', id_name:'recovery_active_rule', rpg_name:'RECOVERY_ACTIVE Rule', value:String(draft.hp_rules?.recovery_active_rule || ''), resource_type:'HP', target_value:'60', desc:'Player-defined RECOVERY_ACTIVE behavior', notes:'BASE_RULE:RECOVERY_ACTIVE' }));\nrules.push(ruleRow({ rule_group:'RECOVERY', type:'BASE_RULE', id_name:'recovery_passive_rule', rpg_name:'RECOVERY_PASSIVE Rule', value:String(draft.hp_rules?.recovery_passive_rule || ''), resource_type:'HP', target_value:'30', desc:'Player-defined RECOVERY_PASSIVE behavior', notes:'BASE_RULE:RECOVERY_PASSIVE' }));\nrules.push(ruleRow({ rule_group:'LEVEL', type:'BASE_RULE', id_name:'level_readiness', rpg_name:'Level Readiness Rule', target_json: jsonString({requires_total_progress:true, finance_plus_actions:true, player_confirmation_required:true}), desc:'Readiness signal only: финансы и действия вместе, ап после подтверждения игрока', notes:'BASE_RULE:LEVEL_READY' }));\nrules.push(ruleRow({ rule_group:'LEVEL', type:'BASE_RULE', id_name:'final_level_up', rpg_name:'Final Level Up Rule', level_scope:'1', value:String(draft.level_rules?.money_net_monthly_threshold ?? ''), resource_type:'THB', target_value:String(draft.level_rules?.money_net_monthly_threshold ?? ''), period:'MONTH', target_json: jsonString({money_net_months:Number(draft.level_rules?.money_net_window_months || 3), monthly_threshold:draft.level_rules?.money_net_monthly_threshold ?? null, currency:String(draft.level_rules?.money_net_currency || 'THB'), threshold_source:'player_defined'}), desc:'Final level-up requires Money Net >= X for 3 months', notes:'BASE_RULE:LEVEL_UP' }));\nrules.push(ruleRow({ rule_group:'GOAL', type:'BASE_RULE', id_name:'goal_reward_source', rpg_name:'Goal Reward Source', value:'SHOP_ONLY', desc:'Goal itself gives no auto-reward; reward comes from shop / goal-card formula', notes:'BASE_RULE:GOAL_REWARD' }));\nrules.push(ruleRow({ rule_group:'THERAPY', type:'BASE_RULE', id_name:'reframe_after_5_fails', rpg_name:'Reframe After 5 Fails', value:'5', resource_type:'FAILS', target_value:'5', desc:'After 5 fails therapist reframe is required', notes:'BASE_RULE:REFRAME' }));\n\nif (draft.reality?.baseline_day_description || draft.reality?.fixed_commitments || draft.reality?.energy_estimate) {\n  rules.push(ruleRow({ rule_group:'REALITY', type:'TACTICAL_RULE', id_name:'baseline_reality', rpg_name:'Baseline Reality', target_json: jsonString(draft.reality), desc:'Reality baseline for recommendations', notes:'TACTICAL_RULE:REALITY' }));\n}\nif (draft.sprint?.days) {\n  rules.push(ruleRow({ rule_group:'SPRINT', type:'TACTICAL_RULE', id_name:'sprint_length', rpg_name:'Sprint Length', value:String(draft.sprint.days), resource_type:'DAY', target_value:String(draft.sprint.days), period:'SPRINT', target_json: jsonString({working_rhythm:draft.sprint.working_rhythm || ''}), desc:'Current sprint configuration', notes:'TACTICAL_RULE:SPRINT' }));\n}\n(draft.task_examples || []).forEach(item => {\n  const track = String(item.track || '').toUpperCase();\n  const resourceType = track === 'VITALITY' ? 'HP' : 'XP_Gold';\n  rules.push(ruleRow({ rule_group:'TASK', type:'TACTICAL_RULE', id_name:slug(item.name), rpg_name:item.name, track, value:String(item.value ?? ''), resource_type:resourceType, target_json: jsonString(item), desc:'Task economics example', notes:'TACTICAL_RULE:TASK' }));\n});\n(draft.habits || []).forEach(item => {\n  const track = String(item.track || '').toUpperCase();\n  const resourceType = track === 'VITALITY' ? 'HP' : 'XP_Gold';\n  rules.push(ruleRow({ rule_group:'HABIT', type:'TACTICAL_RULE', id_name:slug(item.name), rpg_name:item.name, track, value:String(item.reward_value ?? ''), resource_type:resourceType, target_value:String(item.target_value ?? ''), period:item.period || 'DAY', target_json: jsonString(item), desc:'Habit reward rule', notes:'TACTICAL_RULE:HABIT' }));\n});\n(draft.kpis || []).forEach(item => {\n  rules.push(ruleRow({ rule_group:'KPI', type:'TACTICAL_RULE', id_name:slug(item.name), rpg_name:item.name, track:'CRAFT', value:String(item.reward_value ?? ''), resource_type:'XP_Gold', target_value:String(item.target_value ?? ''), period:item.period || 'SPRINT', target_json: jsonString(item), desc:'Sprint KPI', notes:'TACTICAL_RULE:KPI' }));\n});\nif (draft.goal?.goal_name) {\n  rules.push(ruleRow({ rule_group:'GOAL', type:'TACTICAL_RULE', id_name:'current_level_goal', rpg_name:draft.goal.goal_name, value:String(draft.goal.horizon_days || ''), resource_type:'DAY', target_json: jsonString(draft.goal), desc:'Current level goal', notes:'TACTICAL_RULE:GOAL' }));\n}\n(draft.bosses || []).forEach(item => {\n  rules.push(ruleRow({ rule_group:'BOSS', type:'TACTICAL_RULE', id_name:slug(item.name), rpg_name:item.name, value:String(item.cost_value ?? ''), resource_type:item.resource_type || 'XP_Gold', trigger_json: jsonString({triggers:draft.boss_triggers || ''}), target_json: jsonString(item), desc:'Boss / debuff rule', notes:'TACTICAL_RULE:BOSS' }));\n});\n(draft.shop_items || []).forEach(item => {\n  rules.push(ruleRow({ rule_group:'SHOP', type:'TACTICAL_RULE', id_name:slug(item.name), rpg_name:item.name, value:String(-Math.abs(Number(item.cost || 0))), resource_type:'XP_Gold', target_json: jsonString(item), desc:'Reward shop item', notes:'TACTICAL_RULE:SHOP' }));\n});\n(draft.level_names || []).forEach((name, idx) => {\n  rules.push(ruleRow({ rule_group:'LEVEL_NAME', type:'TACTICAL_RULE', id_name:`level_${idx+1}`, rpg_name:name, level_scope:String(idx+1), target_json: jsonString({level_number:idx+1,name}), desc:'Player-defined level name', notes:'TACTICAL_RULE:LEVEL_NAME' }));\n});\nrules.push(ruleRow({ rule_group:'COMMIT', type:'TACTICAL_RULE', id_name:'onboarding_commit', rpg_name:'Onboarding Commit', value:'ACTIVE', target_json: jsonString({contract_confirmed:true}), desc:'Commit accepted at onboarding', notes:'TACTICAL_RULE:COMMIT' }));\n\nlogs.push(logRow({ event_type:'RULE_CREATED', entity_group:'GAME_RULES', entity_id:'onboarding_batch', entity_name:'Onboarding Rules Batch', status:'SUCCESS', value:String(rules.length), comment:'Initial rules created from onboarding' }));\nlogs.push(logRow({ event_type:'COMMIT_LOG', entity_group:'COMMIT', entity_id:'onboarding_commit', entity_name:'Onboarding Commit', status:'ACCEPTED', context_json: jsonString({session_id:data.session_id}) }));\nlogs.push(logRow({ event_type:'ATTEMPT_STARTED', entity_group:'ATTEMPT', entity_id:'1', entity_name:'Attempt 1', status:'ACTIVE', attempt_id:'1', context_json: jsonString({started_from:'onboarding', xp_total_at_start:0}) }));\nlogs.push(logRow({ event_type:'ONBOARDING_COMPLETED', entity_group:'ONBOARDING', entity_id:data.session_id, entity_name:'Onboarding', status:'COMPLETED', attempt_id:'1', context_json: jsonString({goal:draft.goal || null, bio:draft.bio || null, reality:draft.reality || null, level_rules:draft.level_rules || null}) }));\n\nreturn [{ json: { ...data, current_state: 40, draft_json: draft, onboarding_complete: true, game_rules_rows: rules, game_log_rows: logs, reply_to_user: 'Игра активирована. Я зафиксировала правила, запустила первую попытку и теперь могу помочь разложить твою первую цель на понятные шаги.', handoff: { suggest_goal_decomposition: true, goal_slot_hint: String(data.goal_slot_hint || '1') } } }];"
+      },
+      "id": "d702a5b3-6196-470c-a9f2-d06018aa99b5",
+      "name": "Build Activation Writes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46032,
+        21184
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_RULES!B:X:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Build Activation Writes\").first().json.game_rules_rows }) }}",
+        "options": {}
+      },
+      "id": "ce15c49a-57bd-4eb6-a32a-43696b133f13",
+      "name": "Append Activation GAME_RULES",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        46256,
+        21168
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Build Activation Writes\").first().json.game_log_rows }) }}",
+        "options": {}
+      },
+      "id": "5d1db8d2-045c-460f-9514-4d9732e1e292",
+      "name": "Append Activation GAME_LOG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        46480,
+        21184
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json || {};\nconst extracted = data.extracted_json || {};\nconst relevant = Array.isArray(data.relevant_rules) ? data.relevant_rules : [];\nconst ts = data.ts_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nfunction slug(v) { return String(v || '').toLowerCase().normalize('NFKD').replace(/[^\\p{L}\\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'item'; }\nfunction jsonString(v) { return JSON.stringify(v || {}, null, 0); }\nlet sortOrder = 1;\nfunction ruleRow({rule_group, type='TACTICAL_RULE', id_name, rpg_name, track='', value='', resource_type='', target_value='', period='', target_json='', desc='', source='GAME_RULES_WORKFLOW', notes=''}) {\n  return [ts, true, rule_group, type, id_name, rpg_name, track, '', '', '', value, resource_type, target_value, period, target_json, '', '', '', '', desc, source, sortOrder++, notes];\n}\nfunction logRow(comment) {\n  return [[ts, 'RULE_UPDATED', 'GAME_RULES_WORKFLOW', 'GAME_RULES', extracted.target_group || '', extracted.target_group || '', '', 'UPDATED', '', '', '', '', data.today_bkk, '', '', '1', jsonString({target_group: extracted.target_group || '', items: extracted.replacement_items || []}), comment]];\n}\nconst ruleClass = String(extracted.rule_class || '').toUpperCase();\nif (ruleClass === 'BASE_RULE') {\n  return [{ json: { ...data, guarded: true, reply_to_user: extracted.reply_hint || 'Это базовое правило. Его нельзя менять напрямую — такой запрос надо вести через therapist / reframe flow.', game_log_rows: [] } }];\n}\nconst items = Array.isArray(extracted.replacement_items) ? extracted.replacement_items.filter(Boolean) : [];\nconst targetGroup = String(extracted.target_group || '').toUpperCase();\nif (!targetGroup || !items.length) {\n  return [{ json: { ...data, guarded: true, reply_to_user: 'Не смогла собрать точный patch для правила. Напиши, что именно хочешь изменить, чуть конкретнее.', game_log_rows: [] } }];\n}\nconst deactivate_updates = relevant.map(rule => ({ range: `GAME_RULES!C${rule.row_number}`, values: [[false]] }));\nconst new_rule_rows = [];\nif (targetGroup === 'SPRINT') {\n  const item = items[0] || {};\n  new_rule_rows.push(ruleRow({ rule_group:'SPRINT', id_name:'sprint_length', rpg_name:'Sprint Length', value:String(item.days || item.value || ''), resource_type:'DAY', target_value:String(item.days || item.value || ''), period:'SPRINT', target_json: jsonString(item), desc:'Updated sprint rule', notes:'TACTICAL_RULE:SPRINT' }));\n}\nif (targetGroup === 'KPI') {\n  items.forEach(item => new_rule_rows.push(ruleRow({ rule_group:'KPI', id_name:slug(item.name), rpg_name:item.name || 'KPI', track:'CRAFT', value:String(item.reward_xp_gold ?? item.value ?? ''), resource_type:'XP_Gold', target_value:String(item.target_value ?? ''), period:item.period || 'SPRINT', target_json: jsonString(item), desc:'Updated KPI rule', notes:'TACTICAL_RULE:KPI' })));\n}\nif (targetGroup === 'HABIT') {\n  items.forEach(item => {\n    const track = String(item.track || '').toUpperCase();\n    const resource = track === 'VITALITY' ? 'HP' : (track === 'SOCIAL' ? 'RULE_DEFINED' : 'XP_Gold');\n    new_rule_rows.push(ruleRow({ rule_group:'HABIT', id_name:slug(item.name), rpg_name:item.name || 'Habit', track, value:String(item.reward_value ?? item.value ?? ''), resource_type:resource, target_value:String(item.target_value ?? ''), period:item.period || 'DAY', target_json: jsonString(item), desc:'Updated habit rule', notes:'TACTICAL_RULE:HABIT' }));\n  });\n}\nif (targetGroup === 'TASK') {\n  items.forEach(item => new_rule_rows.push(ruleRow({ rule_group:'TASK', id_name:slug(item.name), rpg_name:item.name || 'Task', track:String(item.track || '').toUpperCase(), value:String(item.value ?? ''), resource_type:item.resource_type || 'RULE_DEFINED', target_json: jsonString(item), desc:'Updated task rule', notes:'TACTICAL_RULE:TASK' })));\n}\nif (targetGroup === 'SHOP') {\n  items.forEach(item => new_rule_rows.push(ruleRow({ rule_group:'SHOP', id_name:slug(item.name), rpg_name:item.name || 'Reward', value:String(-Math.abs(Number(item.cost || item.value || 0))), resource_type:'XP_Gold', target_json: jsonString(item), desc:'Updated shop rule', notes:'TACTICAL_RULE:SHOP' })));\n}\nif (targetGroup === 'GOAL') {\n  const item = items[0] || {};\n  new_rule_rows.push(ruleRow({ rule_group:'GOAL', id_name:'current_level_goal', rpg_name:item.goal_name || item.name || 'Goal', value:String(item.horizon_days ?? ''), resource_type:'DAY', target_json: jsonString(item), desc:'Updated goal rule', notes:'TACTICAL_RULE:GOAL' }));\n}\nif (targetGroup === 'LEVEL_NAME') {\n  items.forEach((item, idx) => new_rule_rows.push(ruleRow({ rule_group:'LEVEL_NAME', id_name:`level_${idx+1}`, rpg_name:item.name || item.rpg_name || `Level ${idx+1}`, target_json: jsonString(item), desc:'Updated level name', notes:'TACTICAL_RULE:LEVEL_NAME' })));\n}\nif (targetGroup === 'BOSS') {\n  items.forEach(item => new_rule_rows.push(ruleRow({ rule_group:'BOSS', id_name:slug(item.name), rpg_name:item.name || 'Boss', track:String(item.track || '').toUpperCase(), value:String(item.penalty_value ?? item.value ?? ''), resource_type:item.resource_type || 'XP_Gold', target_json: jsonString(item), desc:'Updated boss rule', notes:'TACTICAL_RULE:BOSS' })));\n}\nif (!new_rule_rows.length) {\n  return [{ json: { ...data, guarded: true, reply_to_user: 'Пока поддерживаю только tactical edits для спринта, KPI, привычек, задач, магазина, цели, уровней и текущих боссов.', game_log_rows: [] } }];\n}\nreturn [{ json: { ...data, guarded: false, deactivate_updates, new_rule_rows, game_log_rows: logRow(extracted.reply_hint || 'Tactical rule updated'), reply_to_user: extracted.reply_hint || 'Тактическое правило обновлено.' } }];"
+      },
+      "id": "58cd0efc-aad3-4445-9446-13e55439a514",
+      "name": "Rules Edit Build Patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46960,
+        21600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "6d3b6f39-e560-42cd-aa91-9a2f5ad75087",
+              "leftValue": "={{ $json.guarded }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fae66975-b379-483e-b0c2-399acc9191bb",
+      "name": "Is Guarded Base Rule?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        47200,
+        21568
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "81c1afe5-a67a-4f32-8f12-903884e99cdd",
+              "leftValue": "={{ Array.isArray($json.deactivate_updates) && $json.deactivate_updates.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6447e9fa-b6ea-42b6-a841-a1b98e7434b0",
+      "name": "Has Deactivate Updates?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        47440,
+        21648
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: \"USER_ENTERED\", data: $(\"Rules Edit Build Patch\").first().json.deactivate_updates }) }}",
+        "options": {}
+      },
+      "id": "10fa7dca-3024-48ab-be63-8d0b226fd2e0",
+      "name": "Deactivate Old Tactical Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        47680,
+        21600
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_RULES!B:X:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Rules Edit Build Patch\").first().json.new_rule_rows }) }}",
+        "options": {}
+      },
+      "id": "f67919cb-41ab-4085-b1d4-c7c8206aba03",
+      "name": "Append Updated Tactical Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        47920,
+        21680
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Rules Edit Build Patch\").first().json.game_log_rows }) }}",
+        "options": {}
+      },
+      "id": "e9c628cd-7859-44b7-82bc-597185455481",
+      "name": "Append RULE_UPDATED GAME_LOG",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        48160,
+        21680
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Build Onboarding Checkpoint').first().json\n  || $('Append Activation GAME_LOG').first().json\n  || $('Rules Edit Build Patch').first().json\n  || $input.first().json\n  || {};\nconst message = data.reply_to_user || data.response_to_agent || data.error_message || 'Сейчас не удалось собрать следующий шаг онбординга. Попробуй еще раз.';\nreturn [{ json: {\n  ok: data.ok !== false,\n  error_message: data.error_message || '',\n  current_state: data.current_state ?? 0,\n  draft_json: data.draft_json ?? {},\n  reply_to_user: message,\n  onboarding_complete: Boolean(data.onboarding_complete),\n  handoff: data.handoff || { suggest_goal_decomposition: false, goal_slot_hint: '' },\n  response_to_agent: message\n} }];"
+      },
+      "id": "40e9dded-e403-46ff-83fc-dec718c60b22",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        47280,
+        21216
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Mode Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mode Switch": {
+      "main": [
+        [
+          {
+            "node": "Read Onboarding GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Active GAME_RULES",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding FSM Router": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Action Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding Action Switch": {
+      "main": [
+        [
+          {
+            "node": "Build Onboarding Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Activation Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Activation Writes": {
+      "main": [
+        [
+          {
+            "node": "Append Activation GAME_RULES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Onboarding GAME_LOG": {
+      "main": [
+        [
+          {
+            "node": "Hydrate Onboarding Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hydrate Onboarding Session": {
+      "main": [
+        [
+          {
+            "node": "Onboarding FSM Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Activation GAME_RULES": {
+      "main": [
+        [
+          {
+            "node": "Append Activation GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Activation GAME_LOG": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Active GAME_RULES": {
+      "main": [
+        [
+          {
+            "node": "Rules Edit Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules Edit Router": {
+      "main": [
+        [
+          {
+            "node": "Rules Edit Action Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules Edit Action Switch": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Extractor": {
+      "main": [
+        [
+          {
+            "node": "Extractor JSON Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extractor JSON Parser": {
+      "main": [
+        [
+          {
+            "node": "Extract Flow Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Flow Switch": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Draft Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rules Edit Build Patch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding Draft Merge": {
+      "main": [
+        [
+          {
+            "node": "Build Onboarding Checkpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Onboarding Checkpoint": {
+      "main": [
+        [
+          {
+            "node": "Append Onboarding Checkpoint GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules Edit Build Patch": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Guarded Base Rule?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Guarded Base Rule?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Has Deactivate Updates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Deactivate Updates?": {
+      "main": [
+        [
+          {
+            "node": "Deactivate Old Tactical Rules",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append Updated Tactical Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deactivate Old Tactical Rules": {
+      "main": [
+        [
+          {
+            "node": "Append Updated Tactical Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Updated Tactical Rules": {
+      "main": [
+        [
+          {
+            "node": "Append RULE_UPDATED GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Onboarding Checkpoint GAME_LOG": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "a46af029-76e2-48da-87d8-e8f23d8df3be",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "fX5QaYzFmmTbIX85f5Xor",
+  "tags": []
+}

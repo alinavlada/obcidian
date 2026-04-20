@@ -1,0 +1,330 @@
+{
+  "name": "1.6. Sekretutka_Notifier",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -960,
+        0
+      ],
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Every Hour"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029542969,
+          "mode": "list",
+          "cachedResultName": "Task List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1029542969"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 6,
+              "firstDataRow": 7
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -720,
+        0
+      ],
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Read Task List",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Найти задачи, которые начинаются через ~1 час\n// Окно: START_DATE попадает в диапазон [сейчас+30мин, сейчас+90мин]\n// Это компенсирует погрешность hourly-запуска\n\nconst now = $now.setZone('Asia/Bangkok');\nconst windowStart = now.plus({ minutes: 30 });\nconst windowEnd   = now.plus({ minutes: 90 });\n\nconst activeStatuses = new Set([\n  '⏳ pending', '⏳pending', 'pending',\n  '🔄 in progress', '🔄in progress', 'in progress',\n  '✋ on hold', 'on hold',\n  '🛑 delayed', 'delayed',\n  '⚠️ overdue', 'overdue',\n  '🔍 under review', 'under review'\n]);\n\nconst results = [];\n\nfor (const item of $input.all()) {\n  const row = item.json;\n  const taskName = String(row.TASK || row.Task || '').trim();\n  if (!taskName) continue;\n\n  const statusRaw = String(row.STATUS || row.status || '').trim();\n  const statusNorm = statusRaw.toLowerCase();\n\n  // Пропускаем уже завершённые и уже уведомлённые\n  if (!activeStatuses.has(statusNorm)) continue;\n  if (statusNorm.includes('reminded') || statusNorm.includes('🔔')) continue;\n\n  // Парсим START_DATE\n  const startRaw = String(row['START_DATE'] || row['Start Date'] || row.start_date || '').trim();\n  if (!startRaw) continue;\n\n  let startDt;\n  try {\n    // Поддерживаем форматы: 'YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm', 'M/D/YYYY H:mm'\n    if (/^\\d{4}-\\d{2}-\\d{2}/.test(startRaw)) {\n      startDt = luxon.DateTime.fromSQL(startRaw, { zone: 'Asia/Bangkok' });\n    } else {\n      startDt = luxon.DateTime.fromFormat(startRaw, 'M/d/yyyy H:mm', { zone: 'Asia/Bangkok' });\n    }\n  } catch (e) {\n    continue;\n  }\n\n  if (!startDt.isValid) continue;\n\n  // Проверяем: задача начинается в следующем ~часе?\n  if (startDt >= windowStart && startDt <= windowEnd) {\n    results.push({\n      json: {\n        task_name: taskName,\n        start_date: startDt.toFormat('HH:mm'),\n        start_date_full: startRaw,\n        status_raw: statusRaw,\n        row_number: item.json.__row || null\n      }\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { skip: true } }];\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Find Due Soon"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Has Reminders?"
+    },
+    {
+      "parameters": {
+        "chatId": "145771888",
+        "text": "=⏰ *Напоминание — через ~1 час:*\n\n📌 {{ $json.task_name }}\n🕐 Начало в {{ $json.start_date }} (BKK)",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -120,
+        -80
+      ],
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Send Reminder",
+      "credentials": {
+        "telegramApi": {
+          "id": "WiPgaZ7ropgQz6RW",
+          "name": "@Secretutka_AV_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029542969,
+          "mode": "list",
+          "cachedResultName": "Task List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1029542969"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "STATUS": "🔔 Reminded"
+          },
+          "matchingColumns": [
+            "TASK"
+          ],
+          "schema": [
+            {
+              "id": "TASK",
+              "displayName": "TASK",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "STATUS",
+              "displayName": "STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 6,
+              "firstDataRow": 7
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        360,
+        -80
+      ],
+      "id": "a1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Mark as Reminded",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        0,
+        80
+      ],
+      "id": "a1b2c3d4-0007-0007-0007-000000000007",
+      "name": "No Reminders — Skip"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: [[ $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss'), 'TASK_REMINDED', 'SEKRETUTKA_NOTIFIER', 'TASK', $json.task_name, $json.task_name, '', 'SENT', '', '', '', '', $json.start_date_full, '', '', '' ]] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        120,
+        -80
+      ],
+      "id": "a1b2c3d4-0008-0008-0008-000000000008",
+      "name": "Append GAME_LOG",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Read Task List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Task List": {
+      "main": [
+        [
+          {
+            "node": "Find Due Soon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Due Soon": {
+      "main": [
+        [
+          {
+            "node": "Has Reminders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Reminders?": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Reminders — Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG": {
+      "main": [
+        [
+          {
+            "node": "Mark as Reminded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "notifier-v1-0000-0000-000000000001",
+  "meta": {
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "Sekretutka-Notifier-v1",
+  "tags": []
+}

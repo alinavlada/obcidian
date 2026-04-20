@@ -1,0 +1,970 @@
+{
+  "name": "Sekretutka_ENGINE_updated",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "run_mode"
+            },
+            {
+              "name": "send_telegram",
+              "type": "boolean"
+            },
+            {
+              "name": "user_id"
+            },
+            {
+              "name": "reason"
+            },
+            {
+              "name": "request_source"
+            },
+            {
+              "name": "active_attempt_id"
+            },
+            {
+              "name": "current_state"
+            },
+            {
+              "name": "force_quest_mode"
+            },
+            {
+              "name": "today_date"
+            },
+            {
+              "name": "message"
+            }
+          ]
+        }
+      },
+      "id": "75956968-1cc8-4bd2-850f-690f0856b819",
+      "name": "Engine Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1600,
+        260
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "10 0 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 6"
+            }
+          ]
+        }
+      },
+      "id": "d61df0e5-42a3-45bb-a4db-b946097321d0",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -1600,
+        40
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json || {};\nconst clean = (value) => String(value ?? '').trim();\nconst parseBool = (value, fallback = false) => {\n  if (typeof value === 'boolean') return value;\n  const s = clean(value).toLowerCase();\n  if (['true','1','yes','y'].includes(s)) return true;\n  if (['false','0','no','n'].includes(s)) return false;\n  return fallback;\n};\nconst nowBkk = $now.setZone('Asia/Bangkok');\nconst rawMode = clean(input.run_mode).toUpperCase();\nconst runMode = ['MIDNIGHT','MORNING','EVENING','SATURDAY','MANUAL'].includes(rawMode) ? rawMode : 'MANUAL';\nreturn [{ json: {\n  run_mode: runMode,\n  request_source: clean(input.request_source || 'manual'),\n  send_telegram: parseBool(input.send_telegram, false),\n  user_id: clean(input.user_id || '145771888'),\n  reason: clean(input.reason || input.message || 'manual_engine_check'),\n  active_attempt_id: clean(input.active_attempt_id || ''),\n  current_state: clean(input.current_state || '').toUpperCase(),\n  force_quest_mode: clean(input.force_quest_mode || '').toUpperCase(),\n  message: clean(input.message || ''),\n  now_ts: nowBkk.toFormat('yyyy-MM-dd HH:mm:ss'),\n  today_date: clean(input.today_date) || nowBkk.toFormat('yyyy-MM-dd'),\n  yesterday_date: nowBkk.minus({ days: 1 }).toFormat('yyyy-MM-dd'),\n  timezone: 'Asia/Bangkok'\n} }];"
+      },
+      "id": "67daaeb0-cb0b-4a61-865a-68e10ef3eac1",
+      "name": "Normalize Manual Context",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1360,
+        260
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const nowBkk = $now.setZone('Asia/Bangkok');\nconst hour = Number(nowBkk.toFormat('H'));\nconst dayOfWeek = Number(nowBkk.toFormat('c'));\nlet run_mode;\nif (dayOfWeek === 6 && hour >= 9 && hour <= 11) run_mode = 'SATURDAY';\nelse if (hour < 6) run_mode = 'MIDNIGHT';\nelse if (hour < 12) run_mode = 'MORNING';\nelse run_mode = 'EVENING';\nreturn [{ json: {\n  run_mode,\n  request_source: 'schedule',\n  send_telegram: ['MORNING','EVENING','SATURDAY'].includes(run_mode),\n  user_id: '145771888',\n  reason: `${run_mode.toLowerCase()}_scheduled_run`,\n  force_quest_mode: '',\n  message: '',\n  now_ts: nowBkk.toFormat('yyyy-MM-dd HH:mm:ss'),\n  today_date: nowBkk.toFormat('yyyy-MM-dd'),\n  yesterday_date: nowBkk.minus({ days: 1 }).toFormat('yyyy-MM-dd'),\n  timezone: 'Asia/Bangkok'\n} }];"
+      },
+      "id": "c8f0c44f-9037-4469-aca1-ca3bbbb0be57",
+      "name": "Set Scheduled Context",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1360,
+        40
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e1037c8f-b811-4028-a77f-91838735f23a",
+                    "leftValue": "={{ $json.run_mode }}",
+                    "rightValue": "SATURDAY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SATURDAY"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8b2f912b-4977-4aa8-af34-53307037b2dd",
+                    "leftValue": "={{ $json.run_mode }}",
+                    "rightValue": "MIDNIGHT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ENGINE"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3d13188d-dcaf-4934-a77b-e5fb37bf0b5c",
+                    "leftValue": "={{ $json.run_mode }}",
+                    "rightValue": "MORNING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ENGINE_MORNING"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "f5556bfc-8fdc-49a5-a929-d67284463ab8",
+                    "leftValue": "={{ $json.run_mode }}",
+                    "rightValue": "EVENING",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ENGINE_EVENING"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "a5b54346-9c7d-4260-8c08-5c27f53d8263",
+      "name": "Run Mode Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -1120,
+        140
+      ],
+      "typeVersion": 3.2
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=PROFILE_GAME!A25:D42",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "48f05e18-fb31-4bbe-a816-c10b8505b90e",
+      "name": "Read PROFILE_GAME Snapshot",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -860,
+        260
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=GAME_RULES!B1:X1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "6e593f4e-46aa-4e8f-be03-8a832d1cea4f",
+      "name": "Read GAME_RULES",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -620,
+        260
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=GAME_LOG!B1:S5000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "e0399f7b-2775-42f3-9c29-ffbb5f27b731",
+      "name": "Read GAME LOG",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -380,
+        260
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=%27WALLET_Monthly%20Budget%27!A1:L5000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "a9587e1b-0fad-4b35-be76-dd749de01bf3",
+      "name": "Read WALLET_Monthly Budget Rows",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -140,
+        260
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=%27Task%20List%27!B7:P400",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "bb12dd0e-586f-4c51-b498-605513e3198e",
+      "name": "Read Task List",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        100,
+        260
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json || {};\nconst snapshotRaw = $('Read PROFILE_GAME Snapshot').first().json || {};\nconst rulesRaw = $('Read GAME_RULES').first().json || {};\nconst logsRaw = $('Read GAME LOG').first().json || {};\nconst walletRaw = $('Read WALLET_Monthly Budget Rows').first().json || {};\nconst taskRaw = $('Read Task List').first().json || {};\n\nconst clean = (value) => String(value ?? '').trim();\nconst upper = (value) => clean(value).toUpperCase();\nconst parseBool = (value) => {\n  if (typeof value === 'boolean') return value;\n  const s = clean(value).toLowerCase();\n  if (['true', 'yes', '1'].includes(s)) return true;\n  if (['false', 'no', '0'].includes(s)) return false;\n  return null;\n};\nconst toNumber = (value) => {\n  const raw = clean(value)\n    .replace(/฿/g, '')\n    .replace(/,/g, '')\n    .replace(/[()]/g, (m) => (m === '(' ? '-' : ''))\n    .replace(/[^\\d.-]/g, '');\n  if (!raw) return null;\n  const n = Number(raw);\n  return Number.isFinite(n) ? n : null;\n};\nconst safeJson = (value) => {\n  try {\n    return JSON.parse(clean(value) || '{}');\n  } catch (e) {\n    return {};\n  }\n};\nconst isoDate = (value) => {\n  const s = clean(value);\n  if (!s) return '';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const dtPrefix = s.match(/^(\\d{4}-\\d{2}-\\d{2})/);\n  if (dtPrefix) return dtPrefix[1];\n  const us = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (us) return `${us[3]}-${String(us[1]).padStart(2, '0')}-${String(us[2]).padStart(2, '0')}`;\n  return '';\n};\nconst daysBetween = (fromIso, toIso) => {\n  if (!fromIso || !toIso) return null;\n  const from = new Date(`${fromIso}T00:00:00Z`);\n  const to = new Date(`${toIso}T00:00:00Z`);\n  return Math.floor((to - from) / 86400000);\n};\nconst hoursBetween = (fromTs, toTs) => {\n  if (!fromTs || !toTs) return null;\n  const from = new Date(fromTs.replace(' ', 'T') + 'Z');\n  const to = new Date(toTs.replace(' ', 'T') + 'Z');\n  if (!from.getTime() || !to.getTime()) return null;\n  return Math.floor((to - from) / 3600000);\n};\nconst rowsFromBatch = (raw) => (((raw.valueRanges || [])[0] || {}).values) || [];\nconst tableFromRows = (rows) => {\n  if (!Array.isArray(rows) || !rows.length) return [];\n  const header = rows[0].map(clean);\n  return rows\n    .slice(1)\n    .filter((row) => row.some((cell) => clean(cell)))\n    .map((row) => {\n      const obj = {};\n      header.forEach((key, idx) => {\n        obj[key] = row[idx] ?? '';\n      });\n      return obj;\n    });\n};\n\nconst snapshotRows = rowsFromBatch(snapshotRaw);\nconst snapshot = {};\nfor (const row of snapshotRows) {\n  const leftKey = clean(row[0]);\n  const leftVal = clean(row[1]);\n  const rightKey = clean(row[2]);\n  const rightVal = clean(row[3]);\n  if (leftKey) snapshot[leftKey] = leftVal;\n  if (rightKey) snapshot[rightKey] = rightVal;\n}\n\nconst ruleRows = tableFromRows(rowsFromBatch(rulesRaw)).filter((r) => parseBool(r.ACTIVE) !== false);\nconst logRows = tableFromRows(rowsFromBatch(logsRaw));\nconst walletRows = tableFromRows(rowsFromBatch(walletRaw));\nconst taskRows = tableFromRows(rowsFromBatch(taskRaw));\n\nconst today = clean(ctx.today_date);\nconst runMode = upper(ctx.run_mode || 'MANUAL');\nconst nowTs = clean(ctx.now_ts || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss'));\nconst requestSource = clean(ctx.request_source || 'manual');\nconst manualActiveAttemptId = Number(clean(ctx.active_attempt_id) || '0') || 0;\nconst manualCurrentState = upper(ctx.current_state || '');\n\nconst snapshotStage = upper(snapshot.PLAYER_STAGE || 'EARLY') || 'EARLY';\nconst xpTotal = toNumber(snapshot.XP_TOTAL) ?? 0;\nconst xpGold = toNumber(snapshot.XP_GOLD) ?? 0;\nconst totalProgress = toNumber(snapshot.TOTAL_PROGRESS) ?? 0;\nconst balanceThb = toNumber(snapshot.BALANCE_THB) ?? 0;\nconst currentAttemptFromSnapshot = Number(clean(snapshot.ACTIVE_ATTEMPT_ID) || '0') || 0;\nconst currentLevelName = clean(snapshot.LEVEL_NAME || '');\nconst currentLevelScope = clean(snapshot.LEVEL_SCOPE || snapshot.LEVEL_NUMBER || (currentLevelName.match(/\\d+/) || [])[0] || '1') || '1';\nconst levelStartTs = clean(snapshot.LEVEL_START_TS || '');\nconst debuffName = clean(snapshot.DEBUFF_NAME || '');\nconst bossName = clean(snapshot.BOSS_NAME || '');\nconst staleFallback = Number(clean(snapshot.IS_DATA_STALE) || '0') || 0;\n\nconst activeStatuses = new Set([\n  '⏳ Pending',\n  '🔄 In Progress',\n  '✋ On Hold',\n  '🛑 Delayed',\n  '⚠️ Overdue',\n  '🔍 Under Review',\n]);\n\nconst taskRowsNormalized = taskRows\n  .map((row, idx) => {\n    const taskName = clean(row.Task);\n    const startDate = isoDate(row['Start Date']);\n    const dueDate = isoDate(row['Due Date']);\n    const effectiveDate = dueDate || startDate;\n    return {\n      row_number: idx + 8,\n      task_id: clean(row.TASK_ID),\n      task: taskName,\n      status: clean(row.Status),\n      track: clean(row.Track),\n      effective_date: effectiveDate,\n      recurring: parseBool(row['Recurring?']) === true,\n      frequency: clean(row.Frequency),\n    };\n  })\n  .filter((r) => r.task);\n\nconst todayTaskCount = taskRowsNormalized.filter((r) => r.effective_date === today && activeStatuses.has(r.status)).length;\nconst overdueTaskCount = taskRowsNormalized.filter((r) => r.effective_date && r.effective_date < today && activeStatuses.has(r.status)).length;\n\nconst rulesById = new Map(ruleRows.map((r) => [clean(r.ID_NAME), r]));\nconst findRule = (id) => rulesById.get(id) || ruleRows.find((r) => clean(r.NOTES).includes(id)) || null;\nconst findScopedRule = (id, levelScope) => {\n  const exact = ruleRows.find((r) => clean(r.ID_NAME) === id && clean(r.LEVEL_SCOPE || r.level_scope) === levelScope);\n  if (exact) return exact;\n  const unscoped = ruleRows.find((r) => clean(r.ID_NAME) === id && !clean(r.LEVEL_SCOPE || r.level_scope));\n  if (unscoped) return unscoped;\n  return findRule(id);\n};\n\nconst failThresholdRule = findRule('fail_threshold');\nconst failPenaltyRule = findRule('fail_penalty_xp_gold');\nconst stuckRule = findRule('stuck_rule');\nconst finalLevelRule = findScopedRule('final_level_up', currentLevelScope);\n\nconst failThresholdDays = toNumber(failThresholdRule?.TARGET_VALUE) ?? toNumber(failThresholdRule?.VALUE) ?? 5;\nconst failPenaltyConfig = safeJson(failPenaltyRule?.TARGET_JSON);\nconst failPenaltyMode = upper(failPenaltyConfig.mode || 'fixed');\nconst failPenaltyXpGold = Math.abs(toNumber(failPenaltyRule?.VALUE) ?? 0);\nconst failPenaltyResolved = failPenaltyMode === 'ALL' ? Math.max(0, xpGold) : Math.max(0, failPenaltyXpGold);\nconst stuckX = toNumber(stuckRule?.VALUE) ?? toNumber(safeJson(stuckRule?.TARGET_JSON).x_amount) ?? 0;\nconst stuckY = toNumber(stuckRule?.TARGET_VALUE) ?? toNumber(safeJson(stuckRule?.TARGET_JSON).y_days) ?? 0;\nconst levelUpThreshold =\n  toNumber(finalLevelRule?.TARGET_VALUE) ??\n  toNumber(finalLevelRule?.VALUE) ??\n  toNumber(safeJson(finalLevelRule?.TARGET_JSON).monthly_threshold) ??\n  null;\n\nconst logs = logRows\n  .map((row) => {\n    const context = safeJson(row.CONTEXT_JSON);\n    const ts = clean(row.TS);\n    const dateRef = isoDate(row.DATE_REF) || isoDate(ts);\n    return {\n      ...row,\n      EVENT_TYPE: upper(row.EVENT_TYPE),\n      ENTITY_GROUP: upper(row.ENTITY_GROUP),\n      STATUS: clean(row.STATUS),\n      ATTEMPT_ID: clean(row.ATTEMPT_ID),\n      DATE_REF_ISO: dateRef,\n      TS_NORM: ts,\n      CONTEXT: context,\n    };\n  })\n  .filter((r) => r.EVENT_TYPE || r.ENTITY_GROUP);\n\nlogs.sort((a, b) => `${a.DATE_REF_ISO} ${a.TS_NORM}`.localeCompare(`${b.DATE_REF_ISO} ${b.TS_NORM}`));\n\nconst onboardingCompleted = logs.some((row) => row.EVENT_TYPE === 'ONBOARDING_COMPLETED');\nconst structuralEvents = new Set(['ONBOARDING_COMPLETED', 'ATTEMPT_STARTED', 'ATTEMPT_FAILED', 'SPRINT_STARTED', 'SPRINT_ENDED', 'LEVEL_UP_APPROVED', 'THERAPIST_REQUIRED']);\nconst cutoffBase = new Date(`${today}T00:00:00Z`);\ncutoffBase.setUTCDate(cutoffBase.getUTCDate() - 90);\nconst cutoffIso = cutoffBase.toISOString().slice(0, 10);\nconst logsForEngine = logs.filter((row) => structuralEvents.has(row.EVENT_TYPE) || (row.DATE_REF_ISO && row.DATE_REF_ISO >= cutoffIso));\nconst latestOfType = (type) => {\n  const target = upper(type);\n  for (let i = logsForEngine.length - 1; i >= 0; i -= 1) {\n    if (logsForEngine[i].EVENT_TYPE === target) return logsForEngine[i];\n  }\n  return null;\n};\nconst hasEventToday = (type) => logsForEngine.some((l) => l.EVENT_TYPE === upper(type) && l.DATE_REF_ISO === today);\nconst hasEventTodayOrPending = (type) => {\n  const target = upper(type);\n  const pending = gameLogRows.some((row) => String(row[1] || '').toUpperCase() === target && String(row[12] || '') === today);\n  return pending || hasEventToday(target);\n};\n\nif (!onboardingCompleted) {\n  const preGameMessage = 'Игра еще не активирована: онбординг не завершен. Ручные данные в CRM можно заполнять уже сейчас, но они пока считаются pre-game data и не запускают attempt, stage или игровые последствия.';\n  return [{ json: {\n    ...ctx,\n    mode: '',\n    user_input: '',\n    game_log_rows: [],\n    quest_mode: '',\n    telegram_text: preGameMessage,\n    response_text: preGameMessage,\n    engine_payload: {\n      run_mode: runMode,\n      request_source: requestSource,\n      input_current_state: manualCurrentState,\n      now_ts: nowTs,\n      today_date: today,\n      onboarding_completed: false,\n      pre_game_mode: true,\n      attempt_status: 'NONE',\n      active_attempt_id: '',\n      stage: 'PRE_GAME',\n      stage_xp: 0,\n      xp_total: xpTotal,\n      xp_gold: xpGold,\n      total_progress: totalProgress,\n      level_ready: false,\n      final_level_up_eligible: false,\n      final_level_up_threshold: levelUpThreshold,\n      final_level_up_scope: currentLevelScope,\n      today_task_count: todayTaskCount,\n      overdue_task_count: overdueTaskCount,\n      transition_codes: [],\n      latest_three_months: [],\n    },\n    ok: true,\n  } }];\n}\n\nconst lastAttemptStarted = latestOfType('ATTEMPT_STARTED');\nconst lastAttemptFailed = latestOfType('ATTEMPT_FAILED');\nconst baseAttemptId = Math.max(currentAttemptFromSnapshot, manualActiveAttemptId);\nconst maxAttemptId = logsForEngine.reduce((acc, row) => Math.max(acc, Number(row.ATTEMPT_ID || 0) || 0), baseAttemptId);\nconst hasStarted = !!lastAttemptStarted;\nconst lastStartTs = lastAttemptStarted ? `${lastAttemptStarted.DATE_REF_ISO} ${lastAttemptStarted.TS_NORM}` : '';\nconst lastFailTs = lastAttemptFailed ? `${lastAttemptFailed.DATE_REF_ISO} ${lastAttemptFailed.TS_NORM}` : '';\nlet attemptActive = hasStarted ? (!lastAttemptFailed || lastStartTs > lastFailTs) : baseAttemptId > 0;\nlet currentAttemptId = attemptActive ? Number(lastAttemptStarted?.ATTEMPT_ID || maxAttemptId || baseAttemptId || 1) || 1 : maxAttemptId;\n\nconst attemptActivityEvents = new Set(['ONBOARDING_COMPLETED', 'ATTEMPT_STARTED', 'RULE_CREATED', 'RULE_UPDATED', 'GOLD_GAINED', 'GOLD_LOST', 'HABIT_DONE', 'HABIT_SKIPPED', 'TASK_CREATED', 'TASK_UPDATED', 'TASK_STATUS_CHANGED', 'TASK_COMPLETED', 'DAY_PLAN_UPDATED', 'GOAL_DECOMPOSED', 'BELIEF_RECORDED', 'THERAPY_DISCUSSION', 'THERAPY_SESSION_COMPLETED', 'TARGET_REVIEWED', 'THERAPY_REFRAME_COMPLETED', 'LEVEL_UP_INTERVIEW_STARTED', 'LEVEL_UP_APPROVED', 'LEVEL_UP_HELD']);\nconst meaningfulEvents = logsForEngine.filter((row) => attemptActivityEvents.has(row.EVENT_TYPE));\nconst latestMeaningful = meaningfulEvents.length ? meaningfulEvents[meaningfulEvents.length - 1] : null;\nconst lastActivityDate = latestMeaningful?.DATE_REF_ISO || '';\nconst silentDays = lastActivityDate ? (daysBetween(lastActivityDate, today) ?? staleFallback) : staleFallback;\n\nconst goalActionWindowStart = (days) => {\n  if (!days || !today) return '';\n  const base = new Date(`${today}T00:00:00Z`);\n  base.setUTCDate(base.getUTCDate() - (days - 1));\n  return base.toISOString().slice(0, 10);\n};\n\nconst activityAfterLastFail = meaningfulEvents.filter((row) => !lastAttemptFailed || `${row.DATE_REF_ISO} ${row.TS_NORM}` > lastFailTs);\nconst newestActivityAfterFail = activityAfterLastFail.length ? activityAfterLastFail[activityAfterLastFail.length - 1] : null;\n\nconst transitionCodes = [];\nconst gameLogRows = [];\nconst bossRules = ruleRows.filter((row) => upper(row.RULE_GROUP) === 'BOSS');\nconst sprintLengthRule = findRule('sprint_length');\nconst sprintLengthDays = toNumber(sprintLengthRule?.TARGET_VALUE) ?? toNumber(sprintLengthRule?.VALUE) ?? null;\nconst goalRule = findRule('current_level_goal');\nconst goalRuleJson = safeJson(goalRule?.TARGET_JSON);\nconst explicitHorizonDate = isoDate(goalRuleJson.horizon_date || goalRule?.TARGET_VALUE || '');\nconst horizonDays = toNumber(goalRuleJson.horizon_days) ?? toNumber(goalRule?.VALUE) ?? null;\nconst computedHorizonDate = explicitHorizonDate || (horizonDays && levelStartTs ? (() => { const d = new Date(`${isoDate(levelStartTs)}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + Number(horizonDays)); return d.toISOString().slice(0, 10); })() : '');\nconst hashSeed = (value) => String(value || '').split('').reduce((acc, ch) => ((acc * 31) + ch.charCodeAt(0)) % 2147483647, 7);\nconst chooseBossRule = (seed) => {\n  if (!bossRules.length) return null;\n  return bossRules[hashSeed(seed) % bossRules.length] || bossRules[0];\n};\nconst logRow = ({\n  event_type,\n  entity_group,\n  entity_id = '',\n  entity_name = '',\n  track = '',\n  status = '',\n  value = '',\n  resource_type = '',\n  delta = '',\n  period = '',\n  date_ref = today,\n  stage_at_time = snapshotStage,\n  level_at_time = currentLevelName || '1',\n  attempt_id = String(currentAttemptId || ''),\n  context_json = '',\n  comment = '',\n}) => [nowTs, event_type, 'ENGINE', entity_group, entity_id, entity_name, track, status, value, resource_type, delta, period, date_ref, stage_at_time, level_at_time, attempt_id, context_json, comment];\n\n\nconst sprintLifecycleAllowed = attemptActive || !!newestActivityAfterFail;\nconst latestSprintStarted = latestOfType('SPRINT_STARTED');\nconst latestSprintEnded = latestOfType('SPRINT_ENDED');\nconst sprintStartDate = latestSprintStarted?.DATE_REF_ISO || '';\nconst sprintIsOpen = !!latestSprintStarted && (!latestSprintEnded || `${latestSprintStarted.DATE_REF_ISO} ${latestSprintStarted.TS_NORM}` > `${latestSprintEnded.DATE_REF_ISO} ${latestSprintEnded.TS_NORM}`);\nconst startSprint = (status = 'STARTED', context = {}) => {\n  transitionCodes.push('SPRINT_STARTED');\n  gameLogRows.push(logRow({\n    event_type: 'SPRINT_STARTED',\n    entity_group: 'SPRINT',\n    entity_id: `${currentAttemptId || 1}:${today}`,\n    entity_name: 'Sprint',\n    status,\n    value: String(sprintLengthDays || ''),\n    resource_type: 'DAY',\n    period: 'SPRINT',\n    stage_at_time: snapshotStage,\n    context_json: JSON.stringify({ sprint_length_days: sprintLengthDays, ...context }),\n    comment: 'ENGINE открыл новый спринт',\n  }));\n  const selectedBoss = chooseBossRule(`${currentAttemptId || 1}|${today}`);\n  if (selectedBoss) {\n    transitionCodes.push('BOSS_ACTIVATED');\n    gameLogRows.push(logRow({\n      event_type: 'BOSS_ACTIVATED',\n      entity_group: 'BOSS',\n      entity_id: clean(selectedBoss.ID_NAME),\n      entity_name: clean(selectedBoss.RPG_NAME || selectedBoss.ID_NAME),\n      status: 'ACTIVATED',\n      value: clean(selectedBoss.VALUE),\n      resource_type: clean(selectedBoss.RESOURCE_TYPE || 'XP_Gold'),\n      stage_at_time: snapshotStage,\n      context_json: JSON.stringify({ sprint_length_days: sprintLengthDays, boss_rule_id: clean(selectedBoss.ID_NAME) }),\n      comment: 'На спринт активирован текущий босс',\n    }));\n  }\n};\nif (sprintLengthDays && sprintLifecycleAllowed && !hasEventToday('SPRINT_STARTED') && !latestSprintStarted) {\n  startSprint('STARTED', { reason: 'engine_bootstrap' });\n} else if (sprintLengthDays && sprintLifecycleAllowed && sprintIsOpen && sprintStartDate) {\n  const sprintAge = daysBetween(sprintStartDate, today);\n  if (sprintAge !== null && sprintAge >= sprintLengthDays && !hasEventToday('SPRINT_ENDED')) {\n    transitionCodes.push('SPRINT_ENDED');\n    gameLogRows.push(logRow({\n      event_type: 'SPRINT_ENDED',\n      entity_group: 'SPRINT',\n      entity_id: `${currentAttemptId || 1}:${sprintStartDate}`,\n      entity_name: 'Sprint',\n      status: 'ENDED',\n      value: String(sprintAge),\n      resource_type: 'DAY',\n      period: 'SPRINT',\n      stage_at_time: snapshotStage,\n      context_json: JSON.stringify({ sprint_started_at: sprintStartDate, sprint_length_days: sprintLengthDays }),\n      comment: 'ENGINE закрыл спринт по длине',\n    }));\n    startSprint('RESTARTED', { previous_start_date: sprintStartDate });\n  }\n}\n\nlet failHappenedNow = false;\nif (attemptActive && silentDays >= failThresholdDays && !hasEventToday('ATTEMPT_FAILED')) {\n  failHappenedNow = true;\n  const failAttemptId = String(currentAttemptId || 1);\n  const failPenaltyAlreadyLogged = logsForEngine.some((row) => row.EVENT_TYPE === 'GOLD_LOST' && row.ENTITY_GROUP === 'ATTEMPT' && clean(row.ENTITY_ID) === failAttemptId && (clean(row.STATUS) === 'BURNED' || clean(row.CONTEXT?.reason) === 'ATTEMPT_FAILED'));\n  transitionCodes.push('ATTEMPT_FAILED');\n  gameLogRows.push(logRow({\n    event_type: 'ATTEMPT_FAILED',\n    entity_group: 'ATTEMPT',\n    entity_id: failAttemptId,\n    entity_name: `Attempt ${failAttemptId}`,\n    status: 'FAILED',\n    value: String(failThresholdDays),\n    resource_type: 'DAYS',\n    delta: '',\n    period: 'DAY',\n    stage_at_time: snapshotStage,\n    context_json: JSON.stringify({ silent_days: silentDays, fail_threshold_days: failThresholdDays, xp_gold_penalty: failPenaltyResolved, fail_penalty_mode: failPenaltyMode }),\n    comment: '5 дней тишины: attempt failed',\n  }));\n  if (failPenaltyResolved > 0 && !failPenaltyAlreadyLogged) {\n    transitionCodes.push('GOLD_LOST');\n    gameLogRows.push(logRow({\n      event_type: 'GOLD_LOST',\n      entity_group: 'ATTEMPT',\n      entity_id: failAttemptId,\n      entity_name: `Attempt ${failAttemptId}`,\n      status: 'BURNED',\n      value: String(xpGold),\n      resource_type: 'XP_GOLD',\n      delta: String(-Math.abs(failPenaltyResolved)),\n      period: 'FAIL',\n      stage_at_time: snapshotStage,\n      context_json: JSON.stringify({ reason: 'ATTEMPT_FAILED', fail_threshold_days: failThresholdDays, fail_penalty_mode: failPenaltyMode, fail_penalty_value: failPenaltyResolved }),\n      comment: `XP_Gold сгорел при провале attempt #${failAttemptId}`,\n    }));\n  }\n  attemptActive = false;\n}\n\nconst historicalFails = logsForEngine.filter((row) => row.EVENT_TYPE === 'ATTEMPT_FAILED').length + (failHappenedNow ? 1 : 0);\nlet needsTherapist = historicalFails >= 5;\nif (needsTherapist && !hasEventTodayOrPending('THERAPIST_REQUIRED')) {\n  transitionCodes.push('THERAPIST_REQUIRED');\n  gameLogRows.push(logRow({\n    event_type: 'THERAPIST_REQUIRED',\n    entity_group: 'THERAPY',\n    entity_id: 'reframe_after_5_fails',\n    entity_name: 'Therapist Reframe Required',\n    status: 'REQUIRED',\n    value: String(historicalFails),\n    resource_type: 'FAILS',\n    context_json: JSON.stringify({ fail_count: historicalFails }),\n    comment: 'После 5 fail требуется reframe через therapist',\n  }));\n}\n\nlet newAttemptStartedNow = false;\nif (!attemptActive && newestActivityAfterFail) {\n  currentAttemptId = (Number(currentAttemptId || 0) || 0) + 1;\n  newAttemptStartedNow = true;\n  transitionCodes.push('ATTEMPT_STARTED');\n  gameLogRows.push(logRow({\n    event_type: 'ATTEMPT_STARTED',\n    entity_group: 'ATTEMPT',\n    entity_id: String(currentAttemptId),\n    entity_name: `Attempt ${currentAttemptId}`,\n    status: 'ACTIVE',\n    stage_at_time: 'EARLY',\n    attempt_id: String(currentAttemptId),\n    context_json: JSON.stringify({ started_from: 'activity_return', xp_total_at_start: xpTotal }),\n    comment: 'Новая попытка стартовала после возвращения игрока',\n  }));\n  attemptActive = true;\n}\n\nlet xpAtAttemptStart = 0;\nif (newAttemptStartedNow) xpAtAttemptStart = xpTotal;\nelse if (lastAttemptStarted && Number(lastAttemptStarted.ATTEMPT_ID || 0) === Number(currentAttemptId || 0)) xpAtAttemptStart = toNumber(lastAttemptStarted.CONTEXT?.xp_total_at_start) ?? 0;\n\nconst stageXp = Math.max(0, xpTotal - xpAtAttemptStart);\nlet derivedStage = 'EARLY';\nif (!attemptActive || failHappenedNow) derivedStage = 'EARLY';\nelse if (stageXp >= 3500) derivedStage = 'LATE';\nelse if (stageXp >= 500) derivedStage = 'MID';\n\nif (derivedStage !== snapshotStage && !hasEventToday('STAGE_CHANGED')) {\n  transitionCodes.push('STAGE_CHANGED');\n  gameLogRows.push(logRow({\n    event_type: 'STAGE_CHANGED',\n    entity_group: 'STAGE',\n    entity_id: derivedStage,\n    entity_name: derivedStage,\n    status: derivedStage,\n    value: String(stageXp),\n    resource_type: 'XP_TOTAL',\n    stage_at_time: derivedStage,\n    attempt_id: String(currentAttemptId || ''),\n    context_json: JSON.stringify({ stage_xp: stageXp, xp_at_attempt_start: xpAtAttemptStart }),\n    comment: `Stage changed to ${derivedStage}`,\n  }));\n}\n\nlet stuckTimeDetected = false;\nlet silentHoursSinceActivity = null;\nif (attemptActive && !failHappenedNow && latestMeaningful) {\n  const latestTs = `${latestMeaningful.DATE_REF_ISO} ${latestMeaningful.TS_NORM}`;\n  silentHoursSinceActivity = hoursBetween(latestTs, nowTs);\n  if (silentHoursSinceActivity !== null && silentHoursSinceActivity >= 25 && !hasEventToday('STUCK_TIME_DETECTED')) {\n    stuckTimeDetected = true;\n    transitionCodes.push('STUCK_TIME_DETECTED');\n    gameLogRows.push(logRow({\n      event_type: 'STUCK_TIME_DETECTED',\n      entity_group: 'STUCK',\n      entity_id: String(currentAttemptId || 1),\n      entity_name: `Attempt ${currentAttemptId || 1} - Time Stuck`,\n      status: 'STUCK_TIME',\n      value: String(silentHoursSinceActivity),\n      resource_type: 'HOURS',\n      stage_at_time: derivedStage,\n      context_json: JSON.stringify({ silent_hours: silentHoursSinceActivity, stuck_threshold_hours: 25, last_activity_ts: latestTs, current_ts: nowTs }),\n      comment: '25+ часов молчания: нужна помощь для выхода из stuck состояния',\n    }));\n  }\n}\n\nlet stuckDetected = false;\nlet moneyNetWindow = null;\nlet goalActionsCount = 0;\nif (stuckX > 0 && stuckY > 0) {\n  const windowStart = goalActionWindowStart(stuckY);\n  const goalActionEvents = meaningfulEvents.filter((row) => ['TASK', 'KPI'].includes(row.ENTITY_GROUP) && row.DATE_REF_ISO && row.DATE_REF_ISO >= windowStart);\n  goalActionsCount = goalActionEvents.length;\n  const walletWindow = walletRows.filter((row) => {\n    const d = isoDate(row.DATE);\n    const currency = upper(row.CURRENCY || '');\n    return d && d >= windowStart && d <= today && (!currency || currency.includes('THB') || currency.includes('БАТ'));\n  });\n  moneyNetWindow = walletWindow.reduce((sum, row) => sum + (toNumber(row.SIGNED_AMOUNT) ?? 0), 0);\n  stuckDetected = goalActionsCount > 0 && moneyNetWindow < stuckX;\n  if (stuckDetected && !hasEventToday('STUCK_TRIGGERED')) {\n    transitionCodes.push('STUCK_TRIGGERED');\n    gameLogRows.push(logRow({\n      event_type: 'STUCK_TRIGGERED',\n      entity_group: 'BOSS',\n      entity_id: clean(snapshot.BOSS_NAME || 'stuck_contact'),\n      entity_name: clean(snapshot.BOSS_NAME || 'Stuck Contact'),\n      status: 'STUCK',\n      value: String(moneyNetWindow),\n      resource_type: 'THB',\n      period: `${stuckY}D`,\n      stage_at_time: derivedStage,\n      context_json: JSON.stringify({ x_amount: stuckX, y_days: stuckY, goal_actions_count: goalActionsCount, money_net_window: moneyNetWindow }),\n      comment: 'Нет денежного прогресса при наличии действий по цели',\n    }));\n  }\n}\n\n\nconst treasureHorizonReachedToday = hasEventToday('TREASURE_HORIZON_REACHED');\nconst treasureHorizonAlreadyLogged = !!(computedHorizonDate && logs.some((row) => row.EVENT_TYPE === 'TREASURE_HORIZON_REACHED' && clean(row.ENTITY_ID) === clean(goalRule?.ID_NAME || 'current_level_goal') && clean(row.CONTEXT?.horizon_date) === computedHorizonDate));\nconst levelApprovedCurrent = logsForEngine.some((row) => row.EVENT_TYPE === 'LEVEL_UP_APPROVED' && (!levelStartTs || `${row.DATE_REF_ISO} ${row.TS_NORM}` >= levelStartTs));\nif (computedHorizonDate && today >= computedHorizonDate && !treasureHorizonReachedToday && !treasureHorizonAlreadyLogged && !levelApprovedCurrent) {\n  transitionCodes.push('TREASURE_HORIZON_REACHED');\n  gameLogRows.push(logRow({\n    event_type: 'TREASURE_HORIZON_REACHED',\n    entity_group: 'GOAL',\n    entity_id: clean(goalRule?.ID_NAME || 'current_level_goal'),\n    entity_name: clean(goalRule?.RPG_NAME || 'Current Level Goal'),\n    status: 'REACHED',\n    value: String(horizonDays || ''),\n    resource_type: 'DAY',\n    period: 'HORIZON',\n    stage_at_time: derivedStage,\n    context_json: JSON.stringify({ horizon_date: computedHorizonDate, horizon_days: horizonDays, level_start_ts: levelStartTs }),\n    comment: 'Горизонт сокровища достигнут без подтверждённого перехода',\n  }));\n  if (failPenaltyResolved > 0) {\n    transitionCodes.push('GOLD_LOST');\n    gameLogRows.push(logRow({\n      event_type: 'GOLD_LOST',\n      entity_group: 'GOAL',\n      entity_id: clean(goalRule?.ID_NAME || 'current_level_goal'),\n      entity_name: clean(goalRule?.RPG_NAME || 'Current Level Goal'),\n      status: 'HORIZON_MISSED',\n      value: String(xpGold),\n      resource_type: 'XP_GOLD',\n      delta: String(-Math.abs(failPenaltyResolved)),\n      period: 'HORIZON',\n      stage_at_time: derivedStage,\n      context_json: JSON.stringify({ reason: 'TREASURE_HORIZON_REACHED', horizon_date: computedHorizonDate, fail_penalty_value: failPenaltyResolved }),\n      comment: 'XP_Gold списан за пропущенный treasure horizon',\n    }));\n  }\n  if (!hasEventTodayOrPending('THERAPIST_REQUIRED')) {\n    transitionCodes.push('THERAPIST_REQUIRED');\n    gameLogRows.push(logRow({\n      event_type: 'THERAPIST_REQUIRED',\n      entity_group: 'THERAPY',\n      entity_id: 'treasure_horizon_reset',\n      entity_name: 'Therapist Reset Required',\n      status: 'REQUIRED',\n      value: computedHorizonDate,\n      resource_type: 'DATE',\n      context_json: JSON.stringify({ reason: 'TREASURE_HORIZON_REACHED', horizon_date: computedHorizonDate }),\n      comment: 'Нужен therapist для пересборки после treasure horizon',\n    }));\n  }\n}\n\nconst levelReady = totalProgress >= 1 && balanceThb >= 1000000;\nconst lastLevelReadyEvent = latestOfType('LEVEL_READY_REACHED');\nconst levelReadyAlreadyLogged = !!(lastLevelReadyEvent && safeJson(lastLevelReadyEvent.CONTEXT_JSON).level_start_ts === levelStartTs);\nif (levelReady && !levelReadyAlreadyLogged) {\n  transitionCodes.push('LEVEL_READY_REACHED');\n  gameLogRows.push(logRow({\n    event_type: 'LEVEL_READY_REACHED',\n    entity_group: 'LEVEL',\n    entity_id: currentLevelName || 'current_level',\n    entity_name: currentLevelName || 'Current Level',\n    status: 'READY',\n    value: String(totalProgress),\n    resource_type: 'TOTAL_PROGRESS',\n    stage_at_time: derivedStage,\n    context_json: JSON.stringify({ total_progress: totalProgress, balance_thb: balanceThb, level_start_ts: levelStartTs }),\n    comment: 'Уровень готов к подтверждению игроком',\n  }));\n}\n\nlet finalLevelEligible = false;\nlet latestThreeMonths = [];\nif (levelUpThreshold != null) {\n  const monthSums = {};\n  for (const row of walletRows) {\n    const monthKey = clean(row.MONTH_KEY);\n    const currency = upper(row.CURRENCY || '');\n    if (!monthKey || (currency && !currency.includes('THB') && !currency.includes('БАТ'))) continue;\n    monthSums[monthKey] = (monthSums[monthKey] || 0) + (toNumber(row.SIGNED_AMOUNT) ?? 0);\n  }\n  latestThreeMonths = Object.keys(monthSums).sort().slice(-3).map((key) => ({ key, value: monthSums[key] }));\n  finalLevelEligible = latestThreeMonths.length === 3 && latestThreeMonths.every((item) => item.value >= levelUpThreshold);\n}\n\nconst todayEvents = meaningfulEvents.filter((r) => r.DATE_REF_ISO === today);\nconst energySignalsToday = new Set();\nfor (const row of todayEvents) {\n  const token = `${clean(row.ENTITY_ID)} ${clean(row.ENTITY_NAME)} ${clean(row.COMMENT)}`.toLowerCase();\n  if (/sleep|сон/.test(token)) energySignalsToday.add('sleep');\n  if (/food|meal|еда|завтрак|обед|ужин/.test(token)) energySignalsToday.add('food');\n  if (/water|вода/.test(token)) energySignalsToday.add('water');\n}\n\nconst ruleActionEvents = new Set(['HABIT_DONE', 'HABIT_SKIPPED', 'TASK_CREATED', 'TASK_UPDATED', 'TASK_STATUS_CHANGED', 'TASK_COMPLETED', 'DAY_PLAN_UPDATED', 'GOAL_DECOMPOSED', 'GOLD_GAINED', 'GOLD_LOST', 'BELIEF_RECORDED', 'THERAPY_DISCUSSION', 'THERAPY_SESSION_COMPLETED', 'RULE_CREATED', 'RULE_UPDATED', 'TARGET_REVIEWED']);\nconst ruleActionsToday = todayEvents.filter((row) => ruleActionEvents.has(row.EVENT_TYPE));\nconst taskAndKpiActionsToday = todayEvents.filter((row) => ['TASK_CREATED', 'TASK_UPDATED', 'TASK_STATUS_CHANGED', 'TASK_COMPLETED'].includes(row.EVENT_TYPE));\n\nlet consistencyStatus = 'NEUTRAL';\nif (failHappenedNow) consistencyStatus = 'FAILED';\nelse if (energySignalsToday.size >= 2 && ruleActionsToday.length > 0) consistencyStatus = 'FULFILLED';\nelse if (energySignalsToday.size >= 1 || ruleActionsToday.length > 0) consistencyStatus = 'MIN_OK';\nelse if (attemptActive && silentDays >= Math.max(1, failThresholdDays - 2)) consistencyStatus = 'AT_RISK';\nelse if (attemptActive && silentDays <= 1) consistencyStatus = 'ON_TRACK';\n\nlet commitStatus = 'UNOBSERVED';\nif (failHappenedNow) commitStatus = 'BROKEN';\nelse if (consistencyStatus === 'FULFILLED') commitStatus = 'KEPT';\nelse if (ruleActionsToday.length > 0 || energySignalsToday.size > 0) commitStatus = 'PARTIAL';\nelse if (attemptActive && silentDays >= Math.max(1, failThresholdDays - 2)) commitStatus = 'FRAGILE';\nelse if (attemptActive) commitStatus = 'ACTIVE';\n\nif (runMode === 'MIDNIGHT' && !hasEventToday('CONSISTENCY_CHECKED')) {\n  transitionCodes.push('CONSISTENCY_CHECKED');\n  gameLogRows.push(logRow({\n    event_type: 'CONSISTENCY_CHECKED',\n    entity_group: 'COMMIT',\n    entity_id: 'daily_consistency',\n    entity_name: 'Daily Consistency',\n    status: consistencyStatus,\n    value: String(energySignalsToday.size),\n    resource_type: 'ENERGY_SIGNALS',\n    period: 'DAY',\n    stage_at_time: derivedStage,\n    context_json: JSON.stringify({ energy_signals: [...energySignalsToday], energy_signals_count: energySignalsToday.size, rule_actions_today: ruleActionsToday.length, task_kpi_actions_today: taskAndKpiActionsToday.length, silent_days: silentDays, attempt_active: attemptActive, commit_status: commitStatus }),\n    comment: 'Тихая ежедневная проверка соблюдения собственных правил',\n  }));\n}\n\nlet questMode = upper(ctx.force_quest_mode || '');\nif (!questMode) {\n  if (!needsTherapist && runMode === 'MORNING') questMode = 'PLANNER';\n  else if (!needsTherapist && runMode === 'EVENING') questMode = 'EVENING_REVIEW';\n}\nif (!['PLANNER', 'EVENING_REVIEW'].includes(questMode)) questMode = '';\n\nlet recommendedNextWorkflow = 'NONE';\nif (needsTherapist) recommendedNextWorkflow = 'THERAPIST';\nelse if (questMode) recommendedNextWorkflow = 'QUEST_ARCHITECT';\n\nconst messageParts = [];\nif (runMode === 'MORNING') messageParts.push('Доброе утро.');\nelse if (runMode === 'EVENING') messageParts.push('Вечерний чек.');\nelse if (runMode === 'MIDNIGHT') messageParts.push('Тихий ночной пересчет.');\nelse messageParts.push('Engine check.');\nmessageParts.push(`Попытка: ${attemptActive ? 'ACTIVE' : 'FAILED / none'}${currentAttemptId ? ` #${currentAttemptId}` : ''}.`);\nmessageParts.push(`Stage: ${derivedStage}.`);\nmessageParts.push(`XP_Gold: ${xpGold}. XP_Total: ${xpTotal}.`);\nmessageParts.push(`TOTAL_PROGRESS: ${totalProgress.toFixed(2)}.`);\nmessageParts.push(`Commit: ${commitStatus}.`);\nif (todayTaskCount || overdueTaskCount) messageParts.push(`Задачи: сегодня ${todayTaskCount}, overdue ${overdueTaskCount}.`);\nif (ruleActionsToday.length || energySignalsToday.size) messageParts.push(`Сигналы дня: actions ${ruleActionsToday.length}, energy ${energySignalsToday.size}/3.`);\nif (failHappenedNow) messageParts.push(`Провал attempt: ${silentDays} дней тишины. Сгорает XP_Gold по правилу.`);\nelse if (attemptActive && silentDays >= Math.max(1, failThresholdDays - 2)) messageParts.push(`Консистентность под риском: ${silentDays} дней без записанной активности.`);\nif (stuckDetected) messageParts.push(`STUCK: действий по цели ${goalActionsCount}, money net за окно ${stuckY}д = ${moneyNetWindow}.`);\nif (stuckTimeDetected) messageParts.push(`STUCK по времени: ${silentHoursSinceActivity}+ часов молчания. Нужна помощь.`);\nif (levelReady) messageParts.push('Уровень готов к подтверждению.');\nif (needsTherapist) messageParts.push('Нужен therapist / reframe после 5 fail.');\nif (debuffName) messageParts.push(`Активный дебафф: ${debuffName}.`);\nif (bossName) messageParts.push(`Текущий босс: ${bossName}.`);\nif (levelUpThreshold != null) messageParts.push(`Money Net threshold уровня: ${levelUpThreshold} THB/мес.`);\n\nconst enginePayload = {\n  run_mode: runMode,\n  request_source: requestSource,\n  input_current_state: manualCurrentState,\n  now_ts: nowTs,\n  today_date: today,\n  onboarding_completed: onboardingCompleted,\n  pre_game_mode: !onboardingCompleted,\n  attempt_status: attemptActive ? 'ACTIVE' : 'FAILED',\n  active_attempt_id: currentAttemptId || '',\n  stage: derivedStage,\n  stage_xp: stageXp,\n  xp_total: xpTotal,\n  xp_gold: xpGold,\n  total_progress: totalProgress,\n  level_ready: levelReady,\n  final_level_up_eligible: finalLevelEligible,\n  final_level_up_threshold: levelUpThreshold,\n  stuck_detected: stuckDetected,\n  silent_days: silentDays,\n  consistency_status: consistencyStatus,\n  commit_status: commitStatus,\n  rule_actions_today: ruleActionsToday.length,\n  energy_signals_count: energySignalsToday.size,\n  goal_action_count_window: goalActionsCount,\n  money_net_window: moneyNetWindow,\n  needs_therapist: needsTherapist,\n  recommended_next_workflow: recommendedNextWorkflow,\n  today_task_count: todayTaskCount,\n  overdue_task_count: overdueTaskCount,\n  transition_codes: transitionCodes,\n  stuck_time_detected: stuckTimeDetected,\n  latest_three_months: latestThreeMonths,\n};\n\nreturn [{ json: {\n  ...ctx,\n  mode: questMode,\n  user_input: '',\n  game_log_rows: gameLogRows,\n  quest_mode: questMode,\n  telegram_text: messageParts.join(' '),\n  engine_payload: enginePayload,\n  response_text: messageParts.join(' '),\n  ok: true,\n} }];\n"
+      },
+      "id": "b1c347c5-395e-4feb-a856-24e151708ce8",
+      "name": "Compute Engine State",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        340,
+        260
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c8e46366-305c-4ffa-8724-284e9814282c",
+              "leftValue": "={{ Array.isArray($json.game_log_rows) && $json.game_log_rows.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b30f543-fce6-4ed5-824b-c8a1484df245",
+      "name": "Has GAME_LOG Writes?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        580,
+        260
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $(\"Compute Engine State\").first().json.game_log_rows }) }}",
+        "options": {}
+      },
+      "id": "4ac38076-5c61-4bff-b9fc-eac50628bdca",
+      "name": "Append GAME_LOG Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        820,
+        180
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1f4e9c26-0594-4ad3-9f97-65d457b83f88",
+              "leftValue": "={{ !!$json.quest_mode }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "745abed7-a80a-4fa6-ad39-4936c915825e",
+      "name": "Quest Needed?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1060,
+        260
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "bVNR2xmUUo_m1_PB7382n",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bVNR2xmUUo_m1_PB7382n",
+          "cachedResultName": "Quest_Architect_Daily_Planner"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "74c68d46-58a6-4624-bfdf-babe1c76a325",
+      "name": "Execute Quest Architect",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "position": [
+        1300,
+        180
+      ],
+      "typeVersion": 1.1,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let engine = {};\ntry { engine = $('Compute Engine State').first().json || {}; } catch (e) {}\nlet qa = {};\ntry { qa = $('Execute Quest Architect').first().json || {}; } catch (e) {}\nconst parts = [];\nif (engine.telegram_text) parts.push(String(engine.telegram_text).trim());\nconst qaText = qa.response_text || qa.output || qa.telegram_text || '';\nif (qaText) parts.push(String(qaText).trim());\nconst responseText = parts.filter(Boolean).join('\\n\\n') || engine.telegram_text || engine.response_text || qaText || 'Сейчас engine не смог собрать итоговый ответ. Попробуй еще раз.';\nreturn [{ json: {\n  ...engine,\n  ok: engine.ok !== false && qa.ok !== false,\n  quest_response: qaText,\n  telegram_text: responseText,\n  response_text: responseText,\n  error_message: (!parts.filter(Boolean).length && (engine.ok === false || qa.ok === false)) ? (engine.error_message || qa.error_message || 'Часть engine-контура отработала с ошибкой.') : ''\n} }];"
+      },
+      "id": "9442daca-21bd-4c08-90d7-b1914164675b",
+      "name": "Build Final Output",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1540,
+        260
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "7ca95538-ddd1-4de4-aafa-bbad501c80e0",
+              "leftValue": "={{ !!$json.send_telegram && !!$json.telegram_text }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1011a120-b219-4812-b887-3545fc6fec30",
+      "name": "Should Send Telegram?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1780,
+        260
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.user_id || 145771888 }}",
+        "text": "={{ $json.telegram_text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "f285b409-b74b-4de4-8817-07d510039531",
+      "name": "Telegram Summary",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        2020,
+        180
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "WiPgaZ7ropgQz6RW",
+          "name": "@Secretutka_AV_bot"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json || {};\nconst text = data.response_text || data.report || data.telegram_text || data.error_message || 'Сейчас engine не смог вернуть результат. Попробуй еще раз.';\nreturn [{ json: {\n  ok: data.ok !== false,\n  run_mode: data.run_mode || 'UNKNOWN',\n  response_text: text,\n  telegram_text: data.telegram_text || data.report || data.response_text || text,\n  error_message: data.error_message || '',\n  engine_payload: data.engine_payload || null,\n  transition_codes: data.engine_payload?.transition_codes || [],\n  quest_mode: data.quest_mode || '',\n  quest_response: data.quest_response || '',\n  game_log_rows_count: Array.isArray(data.game_log_rows) ? data.game_log_rows.length : 0,\n  send_telegram: !!data.send_telegram,\n  user_id: data.user_id || '145771888'\n} }];"
+      },
+      "id": "eda85c9e-c465-4762-a3fe-8b87c79fae33",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2260,
+        260
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first().json || {};\nconst nowBkk = $now.setZone('Asia/Bangkok');\nconst sunday = nowBkk.plus({ days: 1 });\nconst saturday = sunday.plus({ days: 6 });\nconst items = [];\nfor (let i = 0; i < 7; i++) {\n  const d = sunday.plus({ days: i });\n  items.push({ json: {\n    ...ctx,\n    sourceGid: 447034872,\n    type: 'daily',\n    name: d.toFormat('yy.MM.dd'),\n    iso: d.toFormat('yyyy-MM-dd')\n  }});\n}\nconst weeklyName = `${sunday.toFormat('dd')}-${saturday.toFormat('dd')} ${sunday.toFormat('MMMM').toLowerCase()}`;\nitems.push({ json: {\n  ...ctx,\n  sourceGid: 1515122878,\n  type: 'weekly',\n  name: weeklyName,\n  iso: sunday.toFormat('yyyy-MM-dd'),\n  week_end: saturday.toFormat('yyyy-MM-dd')\n}});\nreturn items;"
+      },
+      "id": "a43efde6-6375-41c0-97fa-e12d3dc71888",
+      "name": "Generate Week Sheets",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -860,
+        20
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"requests\":[{\"duplicateSheet\":{\"sourceSheetId\":{{ $json.sourceGid }},\"newSheetName\":\"{{ $json.name }}\",\"insertSheetIndex\":999}}]}",
+        "options": {}
+      },
+      "id": "dd45ed20-fada-4638-a5b9-70f0ca578928",
+      "name": "Duplicate Sheet",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -620,
+        20
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const spec = $('Generate Week Sheets').item.json;\nconst q = (sheet) => `'${sheet.replace(/'/g, \"''\")}'`;\nconst data = [];\nif (spec.type === 'daily') {\n  data.push({ range: `${q(spec.name)}!B3`, values: [[spec.name]] });\n  data.push({ range: `${q(spec.name)}!B6`, values: [[spec.iso]] });\n  return [{ json: { ...spec, data } }];\n}\nconst sheet = spec.name;\ndata.push({ range: `${q(sheet)}!B3`, values: [[spec.name]] });\ndata.push({ range: `${q(sheet)}!B6`, values: [[spec.iso]] });\ndata.push({ range: `${q(sheet)}!B7`, values: [['=WEEKDAY(B6,1)']] });\nconst habitBlocks = [\n  { lookupCol: 'F', startCol: 'H', endCol: 'N', startRow: 4, endRow: 11 },\n  { lookupCol: 'R', startCol: 'T', endCol: 'Z', startRow: 4, endRow: 10 },\n];\nfor (const block of habitBlocks) {\n  for (let row = block.startRow; row <= block.endRow; row++) {\n    const vals = [];\n    for (let day = 0; day < 7; day++) {\n      vals.push(`=IFERROR(VLOOKUP($${block.lookupCol}${row}, INDIRECT(\"'\" & TEXT($B$6+${day}, \"yy.mm.dd\") & \"'!$B$18:$D$32\"), 3, 0), FALSE)`);\n    }\n    data.push({ range: `${q(sheet)}!${block.startCol}${row}:${block.endCol}${row}`, values: [vals] });\n  }\n}\nconst groups = [\n  { taskCol: 'G', checkCol: 'H', day: 0 },\n  { taskCol: 'M', checkCol: 'P', day: 1 },\n  { taskCol: 'S', checkCol: 'T', day: 2 },\n  { taskCol: 'Y', checkCol: 'AB', day: 3 },\n  { taskCol: 'AE', checkCol: 'AF', day: 4 },\n  { taskCol: 'AI', checkCol: 'AJ', day: 5 },\n  { taskCol: 'AM', checkCol: 'AN', day: 6 },\n];\nfor (const group of groups) {\n  const taskValues = [];\n  const checkValues = [];\n  for (let weeklyRow = 26; weeklyRow <= 43; weeklyRow++) {\n    const dailyRow = 15 + (weeklyRow - 26);\n    taskValues.push([`=IFERROR(INDIRECT(\"'\" & TEXT($B$6+${group.day}, \"yy.mm.dd\") & \"'!G${dailyRow}\"), \"\")`]);\n    checkValues.push([`=IFERROR(INDIRECT(\"'\" & TEXT($B$6+${group.day}, \"yy.mm.dd\") & \"'!H${dailyRow}\"), FALSE)`]);\n  }\n  data.push({ range: `${q(sheet)}!${group.taskCol}26:${group.taskCol}43`, values: taskValues });\n  data.push({ range: `${q(sheet)}!${group.checkCol}26:${group.checkCol}43`, values: checkValues });\n}\nreturn [{ json: { ...spec, data } }];"
+      },
+      "id": "95c28a71-366c-4924-adb4-196c8996e715",
+      "name": "Build Sheet Setup Writes",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -380,
+        20
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $json.data }) }}",
+        "options": {}
+      },
+      "id": "e9d9baa3-978f-4dcb-9469-3ec76a1fd997",
+      "name": "Write Sheet Setup Writes",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -140,
+        20
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst sample = (() => { try { return $('Generate Week Sheets').first().json || {}; } catch (e) { return {}; } })();\nconst ok = items.length;\nconst sunday = $now.setZone('Asia/Bangkok').plus({ days: 1 });\nconst saturday = sunday.plus({ days: 6 });\nconst range = `${sunday.toFormat('dd MMM')} – ${saturday.toFormat('dd MMM yyyy')}`;\nlet msg = `📅 *Листы на неделю созданы!*\\n`;\nmsg += `📆 ${range}\\n\\n`;\nmsg += `✅ Настроено: ${ok} листов\\n\\n`;\nmsg += 'Daily и Weekly planners готовы.';\nreturn [{ json: {\n  ...sample,\n  ok: true,\n  report: msg,\n  telegram_text: msg,\n  response_text: msg,\n  engine_payload: null,\n  quest_mode: '',\n  quest_response: ''\n} }];"
+      },
+      "id": "65ec8b4f-3345-4be9-9a82-e43412c279d1",
+      "name": "Saturday Report",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        100,
+        20
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Engine Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Manual Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Scheduled Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Manual Context": {
+      "main": [
+        [
+          {
+            "node": "Run Mode Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Scheduled Context": {
+      "main": [
+        [
+          {
+            "node": "Run Mode Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Mode Switch": {
+      "main": [
+        [
+          {
+            "node": "Generate Week Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PROFILE_GAME Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Read GAME_RULES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME_RULES": {
+      "main": [
+        [
+          {
+            "node": "Read GAME LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME LOG": {
+      "main": [
+        [
+          {
+            "node": "Read WALLET_Monthly Budget Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read WALLET_Monthly Budget Rows": {
+      "main": [
+        [
+          {
+            "node": "Read Task List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Task List": {
+      "main": [
+        [
+          {
+            "node": "Compute Engine State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Engine State": {
+      "main": [
+        [
+          {
+            "node": "Has GAME_LOG Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has GAME_LOG Writes?": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Quest Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG Events": {
+      "main": [
+        [
+          {
+            "node": "Quest Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quest Needed?": {
+      "main": [
+        [
+          {
+            "node": "Execute Quest Architect",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Quest Architect": {
+      "main": [
+        [
+          {
+            "node": "Build Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Output": {
+      "main": [
+        [
+          {
+            "node": "Should Send Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Week Sheets": {
+      "main": [
+        [
+          {
+            "node": "Duplicate Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate Sheet": {
+      "main": [
+        [
+          {
+            "node": "Build Sheet Setup Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sheet Setup Writes": {
+      "main": [
+        [
+          {
+            "node": "Write Sheet Setup Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Sheet Setup Writes": {
+      "main": [
+        [
+          {
+            "node": "Saturday Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Saturday Report": {
+      "main": [
+        [
+          {
+            "node": "Should Send Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Telegram Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Summary": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "5f75766f-db8d-44bd-8e3e-c7a87f83aefa"
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e1468441-ac9b-4a63-98bb-30db4963cecc",
+  "id": "ehXEK1L0_SBcdeAQz0-Am",
+  "tags": []
+}

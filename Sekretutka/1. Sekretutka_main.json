@@ -1,0 +1,1862 @@
+{
+  "name": "1. Sekretutka_main",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "lk-route-lk",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/lk",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "lk-route-status",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/status",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        120688,
+        53920
+      ],
+      "id": "c37de3a8-4c80-4b7e-882b-8f0b690b3092",
+      "name": "If LK Route"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "foKDWtnnUWEXcRwiNLhsJ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/foKDWtnnUWEXcRwiNLhsJ",
+          "cachedResultName": "1.7. Sekretutka_LK_Render"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        120864,
+        53680
+      ],
+      "id": "77f1ab0d-3772-4961-9fc6-a54d88ca7248",
+      "name": "Call '1.7. Sekretutka_LK_Render'",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        120512,
+        53952
+      ],
+      "id": "f32ebe22-2232-4ab2-97ee-fdfadf0fcd1c",
+      "name": "Telegram Trigger",
+      "webhookId": "ca930018-92dd-4a5d-914c-2e2efb04d068",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "WiPgaZ7ropgQz6RW",
+          "name": "@Secretutka_AV_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        122192,
+        53792
+      ],
+      "id": "922079c3-3063-4afc-bafd-74f5aa265c65",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Telegram Trigger\"].json[\"message\"][\"chat\"][\"id\"] }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        124368,
+        53984
+      ],
+      "id": "094a69b5-6f24-45c5-8594-a5c12e786463",
+      "name": "Send a text message5",
+      "webhookId": "b83c6f0e-473c-4444-bbac-bb2fe71a9fac",
+      "alwaysOutputData": true,
+      "credentials": {
+        "telegramApi": {
+          "id": "WiPgaZ7ropgQz6RW",
+          "name": "@Secretutka_AV_bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.router_input }}",
+        "options": {
+          "systemMessage": "Ты — AI-router Секретутки - помощницы с различными субличностями. Определи intent, suggested_route  из пользовательского текста .  Возвращай только валидный JSON без markdown и без пояснений. \n\nДопустимые intents: log_habit, add_task, plan_day, decompose_goal, log_finance, therapist, rules_onboarding, rules_edit, read_status, engine_notice, exit_state, unknown. Учитывай current_state только как сигнал для поля state_locked, но финальный route решает code. \n\nРазрешенные поля JSON: intent, confidence, suggested_route, state_locked, debuff_sensitive, needs_clarification, missing_slots, entities, reply_hint. \n\nВ entities извлекай только надежные поля: item_text, status, value, date_ref, amount, currency, finance_type, category, account, task_text, goal_text, rule_topic, raw_text."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        122176,
+        53952
+      ],
+      "id": "e0a8291e-3d35-4ef3-8558-29a87accd8d7",
+      "name": "Sekretutka",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const TRIGGER_NODE = 'Telegram Trigger';\nconst PROFILE_NODE = 'Read PROFILE_GAME';\nconst RULES_NODE = 'Read GAME_RULES';\nconst LOG_NODE = 'Read GAME_LOG';\nconst BELIEFS_NODE = 'Read BELIEFS';\nconst SCHEDULE_NODE = 'Get Schedule Context';\nconst VOICE_TEXT_NODE = 'Set: Voice Text';\n\nconst triggerData = $items(TRIGGER_NODE)?.[0]?.json || {};\nconst profileData = $items(PROFILE_NODE)?.[0]?.json || {};\nconst rulesData = $items(RULES_NODE)?.map(item => item.json) || [];\nconst logsData = $items(LOG_NODE)?.map(item => item.json) || [];\nconst beliefsData = $items(BELIEFS_NODE)?.map(item => item.json) || [];\nconst scheduleData = $items(SCHEDULE_NODE)?.map(item => item.json) || [];\n\nconst isVoiceMessage = !!triggerData.message?.voice;\nconst chatId = String(triggerData.message?.chat?.id || triggerData.chat?.id || '');\nconst userId = String(triggerData.message?.from?.id || triggerData.user_id || '');\nlet userMessage = '';\n\nif (isVoiceMessage) {\n  try {\n    const voiceData = $items(VOICE_TEXT_NODE)?.[0]?.json || {};\n    userMessage = String(voiceData.voice_transcription || '').trim();\n  } catch (e) {\n    userMessage = '';\n  }\n} else {\n  userMessage = String(triggerData.message?.text || triggerData.text || '').trim();\n}\n\nfunction pick(obj, keys, fallback = '') {\n  for (const key of keys) {\n    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== '') return obj[key];\n  }\n  return fallback;\n}\n\nfunction toNum(value, fallback = 0) {\n  const n = Number(String(value ?? '').replace(/,/g, '.').replace(/[^0-9.-]/g, ''));\n  return Number.isFinite(n) ? n : fallback;\n}\n\nfunction normalize(value) {\n  return String(value || '')\n    .toLowerCase()\n    .replace(/ё/g, 'е')\n    .replace(/[^a-zа-я0-9]+/gi, ' ')\n    .trim();\n}\n\nfunction todayInBangkok() {\n  return new Intl.DateTimeFormat('en-CA', {\n    timeZone: 'Asia/Bangkok',\n    year: 'numeric',\n    month: '2-digit',\n    day: '2-digit'\n  }).format(new Date());\n}\n\nfunction parseBool(value) {\n  if (typeof value === 'boolean') return value;\n  const s = String(value ?? '').trim().toLowerCase();\n  if (['true', '1', 'yes'].includes(s)) return true;\n  if (['false', '0', 'no', ''].includes(s)) return false;\n  return null;\n}\n\nfunction safeJson(value, fallback = {}) {\n  try {\n    const raw = String(value ?? '').trim();\n    return raw ? JSON.parse(raw) : fallback;\n  } catch (e) {\n    return fallback;\n  }\n}\n\nfunction hasMeaningfulRule(row) {\n  if (!row || typeof row !== 'object') return false;\n  const type = normalize(row.TYPE || row.type || '');\n  const id = normalize(row.ID_NAME || row.id_name || '');\n  const rpg = normalize(row.RPG_NAME || row.rpg_name || '');\n  const active = parseBool(row.ACTIVE ?? row.active);\n  return active !== false && Boolean(type || id || rpg);\n}\n\nconst meaningfulRules = rulesData.filter(hasMeaningfulRule);\nconst hasRules = meaningfulRules.length > 0;\nconst onboardingCompleted = logsData.some((row) => normalize(row.EVENT_TYPE || row.event_type || '') === 'onboarding_completed');\nconst onboardingCheckpoints = logsData\n  .map((row) => {\n    const eventType = normalize(row.EVENT_TYPE || row.event_type || '');\n    if (eventType !== 'onboarding checkpoint') return null;\n    const context = safeJson(row.CONTEXT_JSON || row.context_json || '{}');\n    const contextState = Number(context.current_state ?? context.state ?? 0) || 0;\n    const rowState = Number(row.CURRENT_STATE || row.current_state || 0) || 0;\n    const checkpointState = contextState || rowState || 0;\n    const ts = String(row.TS || row.ts || row.updated_at || '').trim();\n    if (!checkpointState) return null;\n    return {\n      current_state: checkpointState,\n      state_timestamp: ts,\n      raw: row,\n      context\n    };\n  })\n  .filter(Boolean);\nconst tsSortKey = (value) => {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  const match = raw.match(/^(\\d{4}-\\d{2}-\\d{2})\\s+(\\d{1,2}):(\\d{2}):(\\d{2})$/);\n  if (match) return `${match[1]} ${String(match[2]).padStart(2, '0')}:${match[3]}:${match[4]}`;\n  return raw;\n};\nconst latestCheckpoint = onboardingCheckpoints.length\n  ? onboardingCheckpoints.sort((a, b) => tsSortKey(a.state_timestamp).localeCompare(tsSortKey(b.state_timestamp)))[onboardingCheckpoints.length - 1]\n  : null;\n\nconst hpCurrent = toNum(pick(profileData, ['HP_CURRENT']));\nconst cycleDay = toNum(pick(profileData, ['CYCLE_DAY']), 1);\nconst playerStage = String(pick(profileData, ['PLAYER_STAGE'], 'EARLY'));\nconst activeAttemptId = String(pick(profileData, ['ACTIVE_ATTEMPT_ID'], '') || '');\nconst levelReadyRaw = String(pick(profileData, ['LEVEL_READY'], '')).toUpperCase();\nconst levelReady = levelReadyRaw === 'TRUE' || levelReadyRaw === '1';\nconst profileCurrentState = String(pick(profileData, ['CURRENT_STATE'], '') || '').trim();\nconst profileStateTimestamp = String(pick(profileData, ['STATE_TIMESTAMP'], '') || '').trim();\nconst currentState = String(latestCheckpoint?.current_state || profileCurrentState || '').trim();\nconst stateTimestamp = String(latestCheckpoint?.state_timestamp || profileStateTimestamp || '').trim();\nconst activeDebuffName = String(pick(profileData, ['DEBUFF_NAME'], '') || '').trim();\n\nconst tasks = scheduleData\n  .filter(t => String(t.Task || t.summary || '').trim() && String(t.Task || t.summary || '').trim() !== 'false')\n  .map(t => ({\n    task: String(t.Task || t.summary || '').trim(),\n    status: String(t.Status || t.status || '').trim(),\n    due: String(t['Due Date'] || t.due || '').trim(),\n    category: String(t.Category || '').trim(),\n    priority: String(t.Priority || '').trim()\n  }));\n\nconst todayTaskCount = tasks.length;\nconst overdueTaskCount = tasks.filter(t => normalize(t.status).includes('overdue')).length;\nconst todaySchedule = tasks.slice(0, 8);\nconst upcomingWeek = tasks.slice(0, 12);\n\nconst habitAliases = meaningfulRules\n  .filter(r => normalize(r.TYPE) === 'habit')\n  .slice(0, 30)\n  .map(r => ({\n    id: String(r.ID_NAME || '').trim(),\n    name: String(r.RPG_NAME || r.ID_NAME || '').trim(),\n    track: String(r.TRACK || '').trim()\n  }))\n  .filter(r => r.id);\n\nconst ruleAliases = meaningfulRules\n  .slice(0, 40)\n  .map(r => ({\n    type: String(r.TYPE || '').trim(),\n    id: String(r.ID_NAME || '').trim(),\n    name: String(r.RPG_NAME || '').trim()\n  }));\n\nconst beliefsSummary = beliefsData\n  .map(row => ({\n    date: String(row.Date || row.date || '').trim(),\n    insight: String(row.New_Insight || row.new_insight || '').trim(),\n    trigger: String(row.Trigger || row.trigger || '').trim(),\n    action_step: String(row.Action_Step || row.action_step || '').trim()\n  }))\n  .filter(row => row.insight)\n  .slice(-4)\n  .reverse();\n\nconst normalizedMessage = normalize(userMessage);\nconst serviceReadIntent = /(status|статус|распис|schedule|calendar|календар|task list|список задач|todo|план дня|planner)/i.test(userMessage)\n  && !/(добав|созда|обнов|измени|отмет|запиш|разлож|привыч|терап|правил|доход|расход|log|habit|finance|goal)/i.test(userMessage);\nconst serviceGameLogRows = serviceReadIntent && (todayTaskCount > 0 || beliefsSummary.length > 0)\n  ? [[\n      $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss'),\n      'SERVICE_EFFECT_RECORDED',\n      'GET_SCHEDULE_CONTEXT',\n      'SERVICE',\n      'schedule_context',\n      'Schedule Context',\n      '',\n      'READ',\n      String(todayTaskCount),\n      'TASKS',\n      '',\n      'DAY',\n      todayInBangkok(),\n      playerStage,\n      '',\n      activeAttemptId || '',\n      JSON.stringify({\n        today_task_count: todayTaskCount,\n        overdue_task_count: overdueTaskCount,\n        beliefs_summary_count: beliefsSummary.length,\n        source: 'main_router'\n      }),\n      'Главный агент подтянул schedule/beliefs context для read-only ответа'\n    ]]\n  : [];\n\nconst routerInput = JSON.stringify({\n  user_message: userMessage,\n  is_voice: isVoiceMessage,\n  chat_id: chatId,\n  user_id: userId,\n  current_state: currentState,\n  state_timestamp: stateTimestamp,\n  hp_current: hpCurrent,\n  cycle_day: cycleDay,\n  player_stage: playerStage,\n  active_attempt_id: activeAttemptId,\n  level_ready: levelReady,\n  active_debuff_name: activeDebuffName,\n  has_rules: hasRules,\n  onboarding_completed: onboardingCompleted,\n  habit_aliases: habitAliases,\n  rule_aliases: ruleAliases,\n  today_task_count: todayTaskCount,\n  overdue_task_count: overdueTaskCount,\n  beliefs_summary: beliefsSummary\n});\n\nreturn {\n  json: {\n    user_message: userMessage,\n    is_voice: isVoiceMessage,\n    chat_id: chatId,\n    user_id: userId,\n    hp_current: hpCurrent,\n    cycle_day: cycleDay,\n    player_stage: playerStage,\n    active_attempt_id: activeAttemptId,\n    level_ready: levelReady,\n    current_state: currentState,\n    state_timestamp: stateTimestamp,\n    active_debuff_name: activeDebuffName,\n    has_rules: hasRules,\n    onboarding_completed: onboardingCompleted,\n    habit_aliases: habitAliases,\n    rule_aliases: ruleAliases,\n    today_task_count: todayTaskCount,\n    overdue_task_count: overdueTaskCount,\n    beliefs_summary: beliefsSummary,\n    service_game_log_rows: serviceGameLogRows,\n    today_schedule: todaySchedule,\n    upcoming_week: upcomingWeek,\n    today_bkk: todayInBangkok(),\n    router_input: routerInput\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        121984,
+        53952
+      ],
+      "id": "c46e56ea-e537-48fa-8c09-bad0f5ea403b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1061340233,
+          "mode": "list",
+          "cachedResultName": "BELIEFS",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1061340233"
+        },
+        "options": {}
+      },
+      "id": "e07273e3-192b-429d-8c3b-836c2ec9d009",
+      "name": "Read BELIEFS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        121552,
+        54016
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "HqfILbWgZ-n7KWPU-pvpl",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/HqfILbWgZ-n7KWPU-pvpl",
+          "cachedResultName": "1.2. Sekretutka_Get Schedule Context"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "source": "sheets"
+          },
+          "matchingColumns": [
+            "source"
+          ],
+          "schema": [
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        121760,
+        53952
+      ],
+      "id": "3eb3031f-6fc9-45f5-a247-ef94c2b9eb3f",
+      "name": "Get Schedule Context",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2124232271,
+          "mode": "list",
+          "cachedResultName": "PROFILE_GAME",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=2124232271"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        121104,
+        54016
+      ],
+      "id": "8a36fb94-852c-4f1d-87d7-0ce94675f290",
+      "name": "Read PROFILE_GAME",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 154686700,
+          "mode": "list",
+          "cachedResultName": "GAME_RULES",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=154686700"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        121248,
+        54016
+      ],
+      "id": "860eca29-ba3e-4955-ac27-217d62934366",
+      "name": "Read GAME_RULES",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 315357971,
+          "mode": "list",
+          "cachedResultName": "GAME_LOG",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=315357971"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        121392,
+        54016
+      ],
+      "id": "9db8a5d6-41e0-4266-955e-1f4680c08510",
+      "name": "Read GAME_LOG",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d4afd1b3-d366-4b8c-bcc4-0def2076bb38",
+              "leftValue": "={{ $json.message.voice.file_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "={{ false }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        120896,
+        53984
+      ],
+      "id": "46b6dd7b-0f37-41cd-ba74-8a31ecaaffce",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_BOT_TOKEN}}/getFile",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "file_id",
+              "value": "={{ $json.message.voice.file_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        121104,
+        53776
+      ],
+      "id": "8c7a61fb-cd0c-4164-8002-2aa3ac896977",
+      "name": "TG: Get File Info",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/bot{{$env.TELEGRAM_BOT_TOKEN}}/{{ $json.result.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        121392,
+        53776
+      ],
+      "id": "901a3e4a-c0a1-44fa-97b9-65d5364b22a4",
+      "name": "TG: Download Voice",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "model",
+              "value": "whisper-1"
+            },
+            {
+              "name": "language",
+              "value": "ru"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        121600,
+        53776
+      ],
+      "id": "3462cbb2-62b8-4ed2-a954-c632d65d3c58",
+      "name": "OpenAI: Whisper",
+      "alwaysOutputData": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "voice-field-001",
+              "name": "voice_transcription",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        121776,
+        53776
+      ],
+      "id": "8bf0e272-c814-41f9-b3cc-aaeab00c4a16",
+      "name": "Set: Voice Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $items('Code in JavaScript')?.[0]?.json || {};\nconst raw = String($json.output || '').trim();\n\nfunction normalize(value) {\n  return String(value || '')\n    .toLowerCase()\n    .replace(/ё/g, 'е')\n    .replace(/[^a-zа-я0-9/_-]+/gi, ' ')\n    .trim();\n}\n\nfunction toNum(value) {\n  const n = Number(String(value ?? '').replace(/,/g, '.').replace(/[^0-9.-]/g, ''));\n  return Number.isFinite(n) ? n : 0;\n}\n\nfunction parseRouterJson(text) {\n  const cleaned = String(text || '')\n    .replace(/^```json\\s*/i, '')\n    .replace(/^```\\s*/i, '')\n    .replace(/```$/i, '')\n    .trim();\n  try {\n    return JSON.parse(cleaned);\n  } catch (e) {\n    return {\n      intent: 'unknown',\n      confidence: 0,\n      suggested_route: 'none',\n      needs_clarification: true,\n      missing_slots: [],\n      entities: {},\n      reply_hint: 'Не удалось надежно распознать intent.'\n    };\n  }\n}\n\nfunction parseStateTs(value) {\n  if (!value) return null;\n  const normalized = String(value).includes('T') ? String(value) : String(value).replace(' ', 'T');\n  const d = new Date(normalized);\n  return Number.isFinite(d.getTime()) ? d : null;\n}\n\nfunction stateLocked(state, ts) {\n  if (!state || !ts) return false;\n  const d = parseStateTs(ts);\n  if (!d) return false;\n  return (Date.now() - d.getTime()) <= 10 * 60 * 1000;\n}\n\nconst ai = parseRouterJson(raw);\nconst entities = ai.entities || {};\nconst currentState = String(base.current_state || '').trim().toUpperCase();\nconst isStateLocked = stateLocked(currentState, base.state_timestamp);\nconst habitAliases = Array.isArray(base.habit_aliases) ? base.habit_aliases : [];\nconst hasRules = !!base.has_rules;\nconst onboardingCompleted = !!base.onboarding_completed;\nconst userMessageRaw = String(base.user_message || '').trim();\nconst userMessageNormalized = normalize(userMessageRaw);\nconst isStartCommand = /^\\/(start|hello|begin)$/.test(userMessageRaw.toLowerCase()) || userMessageNormalized === 'start';\nfunction isOnboardingConfirmation(v) {\n  return /^(ок|okay|ok|да|yes|go|поехали|погнали|старт|стартуем|начинаем|начнем|начнём|давай|давай начнем|давай начнём|хочу|хочу начать|готова|готов|готова начать|готов начать|готова к настройке|готов к настройке|переход к настройке|к настройке|настройка|перейти к настройке|перейдем к настройке|перейдём к настройке|запускай|запусти|запускаем|запустить|go ahead|lets go|let's go)$/i.test(String(v || '').trim());\n}\nconst onboardingConfirmation = isOnboardingConfirmation(userMessageRaw);\nconst shouldForceOnboarding = onboardingConfirmation && (!onboardingCompleted || !hasRules);\nconst startPromoText = `Привет! 💁‍♀️\nЯ Секретутка — твоя помощница, высокоинтеллектуальный симбиоз личного секретаря (расписание задач и отслеживание привычек), финансиста, Мастера RPG-игр и коуча-психолога. Моя миссия — вести тебя к результату, сохраняя здоровье и капитал, поэтому я помогаю превратить жизнь в игру и увидеть себя настоящую.\n\nВ игре правила не прописаны — ты создаешь их сама, а система честно фиксирует только то, что реально прошло через workflow.\n\nДавай соберем твою версию игры и запустим первый уровень?`;\n\nfunction resolveHabitId(text) {\n  const target = normalize(text || base.user_message);\n  for (const habit of habitAliases) {\n    const variants = [habit.id, habit.name, habit.track].map(normalize).filter(Boolean);\n    if (variants.some(v => v && target.includes(v))) return habit.id;\n  }\n  return '';\n}\n\nfunction detectHabitStatus() {\n  const explicit = String(entities.status || '').toUpperCase();\n  if (explicit === 'DONE' || explicit === 'SKIPPED') return explicit;\n  if (/(не |пропуст|skip)/i.test(base.user_message)) return 'SKIPPED';\n  return 'DONE';\n}\n\nfunction detectAmount() {\n  if (entities.amount !== undefined && entities.amount !== null && String(entities.amount) !== '') return toNum(entities.amount);\n  const match = String(base.user_message).match(/(-?\\d+[\\d\\s.,]*)/);\n  return match ? toNum(match[1]) : 0;\n}\n\nfunction detectCurrency() {\n  const explicit = String(entities.currency || '').toUpperCase();\n  if (['THB', 'RUB', 'USDT'].includes(explicit)) return explicit;\n  if (/(руб|rub)/i.test(base.user_message)) return 'RUB';\n  if (/(usdt|usdт|доллар)/i.test(base.user_message)) return 'USDT';\n  return 'THB';\n}\n\nfunction detectFinanceType() {\n  const explicit = String(entities.finance_type || '').trim();\n  if (explicit) return explicit;\n  if (/(получ|пришл|доход|income|зарплат|bonus|freelance)/i.test(base.user_message)) return 'Income';\n  if (/(долг|кредит|подписк)/i.test(base.user_message)) return 'Debts & Subscriptions';\n  if (/(сбереж|накоп|перевела в savings)/i.test(base.user_message)) return 'Savings';\n  if (/(арен|интернет|коммун|страхов|рент)/i.test(base.user_message)) return 'Fixed Expenses';\n  return 'Variable Expenses';\n}\n\nfunction detectCategory() {\n  const explicit = String(entities.category || '').trim();\n  if (explicit) return explicit;\n  if (/(еда|кафе|ужин|обед|продукт|grocer|dining)/i.test(base.user_message)) return 'Dining out';\n  if (/(такси|метро|транспорт|fuel)/i.test(base.user_message)) return 'Fuel';\n  if (/(одежд|clothing)/i.test(base.user_message)) return 'Clothing';\n  if (/(врач|лекар|health)/i.test(base.user_message)) return 'Medications';\n  if (/(развлеч|кино|entertainment)/i.test(base.user_message)) return 'Entertainment';\n  if (/(зарплат)/i.test(base.user_message)) return 'Salary';\n  if (/(фриланс)/i.test(base.user_message)) return 'Freelance Work';\n  return '';\n}\n\nfunction detectAccount(currency) {\n  const explicit = String(entities.account || '').trim();\n  if (explicit) return explicit;\n  if (currency === 'RUB') return 'T-bank';\n  return 'BKK-bank';\n}\n\nlet intent = String(ai.intent || 'unknown');\nlet routeTarget = 'none';\nlet routePayload = {};\nlet output = '';\nlet fallbackOutput = '';\n\nif (isStartCommand && !onboardingCompleted) {\n  intent = 'rules_onboarding';\n  routeTarget = 'none';\n  output = startPromoText;\n} else if (shouldForceOnboarding) {\n  intent = 'rules_onboarding';\n  routeTarget = 'rules';\n  routePayload = {\n    mode: 'ONBOARDING',\n    user_input: String(base.user_message || ''),\n    session_id: String(base.chat_id || base.user_id || 'default-session'),\n    current_state: 0,\n    draft_json: {},\n    intro_style: 'coach'\n  };\n  fallbackOutput = '';\n} else if (intent === 'exit_state') {\n  output = 'Возвращаюсь в обычный режим. Чем займемся?';\n} else if (!onboardingCompleted) {\n  intent = 'rules_onboarding';\n  routeTarget = 'rules';\n  routePayload = {\n    mode: 'ONBOARDING',\n    user_input: String(base.user_message || ''),\n    session_id: String(base.chat_id || base.user_id || 'default-session'),\n    current_state: 0,\n    draft_json: {},\n    intro_style: 'coach'\n  };\n  fallbackOutput = '';\n} else if (currentState === 'THERAPIST' && isStateLocked) {\n  intent = 'therapist';\n  routeTarget = 'therapist';\n  fallbackOutput = 'Продолжаю терапевтическую сессию.';\n} else if (currentState === 'PLANNER' && isStateLocked) {\n  intent = 'plan_day';\n  routeTarget = 'quest';\n  routePayload.quest_mode = 'PLANNER';\n  fallbackOutput = 'Возвращаю это в планировщик.';\n} else if (intent === 'therapist') {\n  routeTarget = 'therapist';\n  fallbackOutput = 'Передаю это Терапевту.';\n} else if (intent === 'log_finance') {\n  const amount = detectAmount();\n  if (!amount) {\n    output = 'Напиши сумму и при желании категорию, и я зафиксирую финансы.';\n  } else {\n    const currency = detectCurrency();\n    routeTarget = 'finance';\n    routePayload = {\n      amount,\n      currency,\n      finance_type: detectFinanceType(),\n      category: detectCategory(),\n      account: detectAccount(currency),\n      details: String(entities.details || base.user_message).trim(),\n      date: String(entities.date_ref || '').match(/^\\d{4}-\\d{2}-\\d{2}$/) ? String(entities.date_ref) : base.today_bkk\n    };\n    fallbackOutput = 'Пробую записать финансы.';\n  }\n} else if (intent === 'log_habit') {\n  const itemId = resolveHabitId(entities.item_text || base.user_message);\n  if (!itemId) {\n    output = 'Уточни, пожалуйста, какую именно привычку нужно отметить.';\n  } else {\n    routeTarget = 'quest';\n    routePayload = {\n      quest_mode: 'HABIT_LOG',\n      item_id: itemId,\n      value: toNum(entities.value || 1) || 1,\n      status: detectHabitStatus(),\n      date: String(entities.date_ref || '').match(/^\\d{4}-\\d{2}-\\d{2}$/) ? String(entities.date_ref) : base.today_bkk\n    };\n    fallbackOutput = 'Передаю отметку привычки в Архитектор Квестов.';\n  }\n} else if (intent === 'add_task') {\n  routeTarget = 'quest';\n  routePayload.quest_mode = 'TASK_CAPTURE';\n  fallbackOutput = 'Передаю это Архитектору Квестов.';\n} else if (intent === 'plan_day') {\n  routeTarget = 'quest';\n  routePayload.quest_mode = 'PLANNER';\n  fallbackOutput = 'Передаю это Архитектору Квестов.';\n} else if (intent === 'decompose_goal') {\n  routeTarget = 'quest';\n  routePayload.quest_mode = 'GOAL_DECOMPOSER';\n  fallbackOutput = 'Передаю это Архитектору Квестов.';\n} else if (intent === 'rules_onboarding' || intent === 'rules_edit') {\n  routeTarget = 'rules';\n  routePayload = {\n    mode: intent === 'rules_edit' ? 'RULES_EDIT' : 'ONBOARDING',\n    user_input: String(base.user_message || ''),\n    session_id: String(base.chat_id || base.user_id || 'default-session'),\n    current_state: 0,\n    draft_json: {},\n    edit_target: String(entities.rule_topic || '').trim(),\n    goal_slot_hint: '1',\n    intro_style: 'coach'\n  };\n  fallbackOutput = intent === 'rules_edit' ? 'Перехожу в редактирование правил.' : '';\n} else if (intent === 'read_status') {\n  output = onboardingCompleted\n    ? `Сейчас у тебя HP ${base.hp_current}/100, stage ${base.player_stage}, попытка ${base.active_attempt_id || 'не задана'}. Активных задач на сегодня: ${base.today_task_count}, просроченных: ${base.overdue_task_count}.${base.level_ready ? ' Переход на следующий уровень доступен.' : ''}`\n    : 'Игра еще не началась: можно заполнять таблицу вручную, но игровой статус появится только после завершения онбординга.';\n} else if (intent === 'engine_notice') {\n  routeTarget = 'engine';\n  routePayload = {\n    run_mode: 'MANUAL',\n    request_source: 'main_engine_notice',\n    raw_notice: String(base.user_message || ''),\n    today_date: base.today_bkk,\n    active_attempt_id: String(base.active_attempt_id || ''),\n    current_state: String(base.current_state || '')\n  };\n  fallbackOutput = 'Передаю системное уведомление в engine-контур.';\n} else {\n  output = 'Не до конца поняла запрос. Это про привычку, задачу, деньги или нужен разбор состояния?';\n}\n\nreturn {\n  json: {\n    ...base,\n    intent,\n    confidence: ai.confidence ?? 0,\n    suggested_route: ai.suggested_route || routeTarget,\n    state_locked: !!isStateLocked,\n    needs_clarification: !!ai.needs_clarification,\n    missing_slots: Array.isArray(ai.missing_slots) ? ai.missing_slots : [],\n    route_target: routeTarget,\n    route_payload: routePayload,\n    is_start_promo: isStartCommand && !onboardingCompleted,\n    reply_hint: ai.reply_hint || '',\n    fallback_output: fallbackOutput,\n    output\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        122448,
+        53952
+      ],
+      "id": "4c8d775e-656a-4174-9297-dc9d2c962366",
+      "name": "Route Decision"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-therapist",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "therapist",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        122640,
+        53920
+      ],
+      "id": "940bc2bb-0916-462c-bfe6-de2d68aaa144",
+      "name": "If Therapist Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-finance",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "finance",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        122864,
+        54016
+      ],
+      "id": "cca2a4f1-9365-4030-81a9-71a095f3f656",
+      "name": "If Finance Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-habit",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "habit",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        123088,
+        54144
+      ],
+      "id": "dd74ee49-3852-4f5f-95b5-f7735c6c053a",
+      "name": "If Habit Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-quest",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "quest",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        123312,
+        54240
+      ],
+      "id": "0cd50c0b-4494-428a-97b4-6067582d030b",
+      "name": "If Quest Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-rules",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "rules",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        123520,
+        54288
+      ],
+      "id": "c5b01acb-bc02-4695-810e-5a06c37abfac",
+      "name": "If Rules Route"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "if-engine",
+              "leftValue": "={{ $json.route_target }}",
+              "rightValue": "engine",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        123760,
+        54368
+      ],
+      "id": "4ec0462a-f146-46bd-92cc-790a2f1c7a2b",
+      "name": "If Engine Route"
+    },
+    {
+      "parameters": {
+        "jsCode": "const route = $items('Route Decision')?.[0]?.json || {};\nconst _allInputItems = $input.all();\nconst candidate = (\n  _allInputItems.find(i => i.json && (i.json.reply_to_user || i.json.output || i.json.response)) ||\n  _allInputItems[0]\n)?.json || {};\n\nfunction pickText(obj) {\n  const keys = ['output', 'response', 'response_text', 'reply_to_user', 'response_to_agent', 'telegram_text', 'summary_for_user', 'message', 'text'];\n  for (const key of keys) {\n    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== '') return String(obj[key]).trim();\n  }\n  return '';\n}\n\nfunction clean(value, fallback = '-') {\n  const s = String(value ?? '').trim();\n  return s || fallback;\n}\n\nconst candidateText = pickText(candidate);\nconst routeOutput = String(route.output || '').trim();\nconst routeFallback = String(route.fallback_output || '').trim();\nconst routeHint = String(route.reply_hint || '').trim();\nconst routePayload = route.route_payload || {};\nconst shouldForceStartPromo = !!route.is_start_promo\n  || (route.route_target === 'rules' && routeFallback && String(routePayload.user_input || '').trim() === '' && Number(routePayload.current_state ?? 0) === 0);\n\nlet text = '';\nif (shouldForceStartPromo) {\n  text = route.is_start_promo ? routeOutput : routeFallback;\n} else {\n  const explicitError = String(candidate.error_message || candidate.user_error_text || '').trim();\n  text = candidateText || explicitError || routeOutput || routeFallback || routeHint || 'Сейчас не удалось собрать ответ в main. Попробуй еще раз.';\n}\n\ntext = text\n  .replace(/^```json\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/```$/i, '')\n  .trim();\n\nlet output = text || 'Сейчас не удалось собрать ответ в main. Попробуй еще раз.';\n\nreturn {\n  json: {\n    output,\n    route_target: route.route_target || '',\n    source_text_found: Boolean(candidateText)\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        124192,
+        53984
+      ],
+      "id": "bf5532f1-a197-4d6f-a5b3-cfd6b8f948b8",
+      "name": "Format Final Response"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fxeZXplAm5MfdSGDdi338",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/fxeZXplAm5MfdSGDdi338",
+          "cachedResultName": "1.5 Sekretutka_Therapist"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "mode": "={{ $json.route_payload.mode || 'DISCUSSION' }}",
+            "raw_text": "={{ $json.user_message || '' }}",
+            "user_id": "={{ String($json.message?.from?.id || $json.user_id || 145771888) }}",
+            "session_id": "={{ String($json.message?.chat?.id || $json.chat_id || $json.user_id || 'default-session') }}",
+            "engine_payload": "={{ $json.route_payload.engine_payload || {} }}",
+            "trigger_reason": "={{ $json.route_payload.trigger_reason || '' }}",
+            "rule_change_request": "={{ $json.route_payload.rule_change_request || '' }}",
+            "target_rule_ids": "={{ $json.route_payload.target_rule_ids || [] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "raw_text",
+              "displayName": "raw_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "cycle_day",
+              "displayName": "cycle_day",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "current_hp",
+              "displayName": "current_hp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "today_schedule",
+              "displayName": "today_schedule",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "array",
+              "removed": false
+            },
+            {
+              "id": "upcoming_week",
+              "displayName": "upcoming_week",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        122880,
+        53840
+      ],
+      "id": "84051792-2546-441e-9934-dcf19c6db493",
+      "name": "Call '1.5 Sekretutka_Therapist'",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "xFmyWUFSK1CwQxCC54lRF",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/xFmyWUFSK1CwQxCC54lRF",
+          "cachedResultName": "1.4. Sekretutka_finance"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "AMOUNT": "={{ $json.route_payload.amount || 0 }}",
+            "TYPE": "={{ $json.route_payload.finance_type || '' }}",
+            "CATEGORY": "={{ $json.route_payload.category || '' }}",
+            "CURRENCY": "={{ $json.route_payload.currency || 'THB' }}",
+            "DETAILS": "={{ $json.route_payload.details || $json.user_message || '' }}",
+            "DATE": "={{ $json.route_payload.date || $json.today_bkk }}",
+            "ACCOUNT": "={{ $json.route_payload.account || 'BKK-bank' }}",
+            "user_id": "={{ String($json.message?.from?.id || $json.user_id || 'unknown') }}",
+            "session_id": "={{ String($json.message?.chat?.id || $json.chat_id || 'default-session') }}",
+            "chat_id": "={{ String($json.message?.chat?.id || $json.chat_id || '') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "TYPE",
+              "displayName": "TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "CATEGORY",
+              "displayName": "CATEGORY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "CURRENCY",
+              "displayName": "CURRENCY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "AMOUNT",
+              "displayName": "AMOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "DETAILS",
+              "displayName": "DETAILS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "DATE",
+              "displayName": "DATE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "ACCOUNT",
+              "displayName": "ACCOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        123088,
+        53920
+      ],
+      "id": "25bddb6c-d1de-48d2-b646-20c0c28b5f8b",
+      "name": "Call '1.4. Sekretutka_finance'",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "bVNR2xmUUo_m1_PB7382n",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bVNR2xmUUo_m1_PB7382n",
+          "cachedResultName": "1.3 Quest_Architect_Daily_Planner"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "mode": "={{ $json.route_payload.quest_mode || 'TASK_CAPTURE' }}",
+            "user_input": "={{ $json.user_message || '' }}",
+            "user_id": "={{ String($json.message?.from?.id || $json.user_id || 145771888) }}",
+            "item_id": "={{ $json.route_payload.item_id || '' }}",
+            "value": "={{ $json.route_payload.value || 1 }}",
+            "date": "={{ $json.route_payload.date || $json.today_bkk }}",
+            "status": "={{ $json.route_payload.status || 'DONE' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "user_input",
+              "displayName": "user_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "item_id",
+              "displayName": "item_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "value",
+              "displayName": "value",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "task_name",
+              "displayName": "task_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "task_status",
+              "displayName": "task_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "time_slot",
+              "displayName": "time_slot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "goal_slot",
+              "displayName": "goal_slot",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "goal_text",
+              "displayName": "goal_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "goal_deadline",
+              "displayName": "goal_deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "goal_reward",
+              "displayName": "goal_reward",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        123344,
+        54032
+      ],
+      "id": "52e5885f-b839-42f6-bc2a-6e86faf7b35c",
+      "name": "Call '1.3 Quest_Architect_Daily_Planner'",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fX5QaYzFmmTbIX85f5Xor",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/fX5QaYzFmmTbIX85f5Xor",
+          "cachedResultName": "1.0 Sekretutka_Game Rules"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "mode": "={{ $json.route_payload.mode || 'RULES_EDIT' }}",
+            "user_input": "={{ $json.route_payload.user_input || $json.user_message || '' }}",
+            "session_id": "={{ String($json.route_payload.session_id || $json.message?.chat?.id || $json.chat_id || $json.user_id || 'default-session') }}",
+            "current_state": "={{ $json.route_payload.current_state ?? 0 }}",
+            "draft_json": "={{ $json.route_payload.draft_json || {} }}",
+            "edit_target": "={{ $json.route_payload.edit_target || '' }}",
+            "goal_slot_hint": "={{ $json.route_payload.goal_slot_hint || '1' }}",
+            "intro_style": "={{ $json.route_payload.intro_style || 'coach' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "user_input",
+              "displayName": "user_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "current_state",
+              "displayName": "current_state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "draft_json",
+              "displayName": "draft_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            },
+            {
+              "id": "edit_target",
+              "displayName": "edit_target",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "goal_slot_hint",
+              "displayName": "goal_slot_hint",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "intro_style",
+              "displayName": "intro_style",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        123760,
+        54144
+      ],
+      "id": "242eb504-d592-47fb-86ad-fdfe36fa89d6",
+      "name": "Call '1.0 Sekretutka_Game Rules'",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ehXEK1L0_SBcdeAQz0-Am",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ehXEK1L0_SBcdeAQz0-Am",
+          "cachedResultName": "Sekretutka_ENGINE_updated"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_mode": "={{ $json.route_payload.run_mode || 'MANUAL' }}",
+            "send_telegram": "={{ false }}",
+            "user_id": "={{ String($json.message?.from?.id || $json.user_id || 145771888) }}",
+            "reason": "={{ $json.route_payload.request_source || 'main_engine_notice' }}",
+            "request_source": "={{ $json.route_payload.request_source || 'main_engine_notice' }}",
+            "force_quest_mode": "={{ $json.route_payload.force_quest_mode || '' }}",
+            "today_date": "={{ $json.route_payload.today_date || $json.today_bkk }}",
+            "message": "={{ $json.route_payload.raw_notice || $json.user_message || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "run_mode",
+              "displayName": "run_mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "send_telegram",
+              "displayName": "send_telegram",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean",
+              "removed": false
+            },
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "request_source",
+              "displayName": "request_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "force_quest_mode",
+              "displayName": "force_quest_mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "today_date",
+              "displayName": "today_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        123984,
+        54224
+      ],
+      "id": "79b53303-9161-4461-bf43-35f79e1a87d2",
+      "name": "Call '1.1 Sekretutka_ENGINE_updated'",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-main-service-effect",
+              "leftValue": "={{ Array.isArray($json.service_game_log_rows) && $json.service_game_log_rows.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "628df885-5ca3-4a4b-a856-cf8978226882",
+      "name": "Has Service Effect?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        122208,
+        54160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $json.service_game_log_rows || [] }) }}",
+        "options": {}
+      },
+      "id": "c948fee3-2b30-44fa-9681-d4b19a289258",
+      "name": "Append GAME_LOG (Service Main)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        122512,
+        54160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Telegram Trigger": [
+      {
+        "json": {
+          "update_id": 91803154,
+          "message": {
+            "message_id": 842,
+            "from": {
+              "id": 145771888,
+              "is_bot": false,
+              "first_name": "Alina",
+              "last_name": "Vladimirovа",
+              "username": "alinavlada",
+              "language_code": "ru",
+              "is_premium": true
+            },
+            "chat": {
+              "id": 145771888,
+              "first_name": "Alina",
+              "last_name": "Vladimirovа",
+              "username": "alinavlada",
+              "type": "private"
+            },
+            "date": 1775743458,
+            "text": "привет"
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "If LK Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If LK Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.7. Sekretutka_LK_Render'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "TG: Get File Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TG: Get File Info": {
+      "main": [
+        [
+          {
+            "node": "TG: Download Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TG: Download Voice": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Whisper": {
+      "main": [
+        [
+          {
+            "node": "Set: Voice Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Voice Text": {
+      "main": [
+        [
+          {
+            "node": "Read PROFILE_GAME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PROFILE_GAME": {
+      "main": [
+        [
+          {
+            "node": "Read GAME_RULES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME_RULES": {
+      "main": [
+        [
+          {
+            "node": "Read GAME_LOG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME_LOG": {
+      "main": [
+        [
+          {
+            "node": "Read BELIEFS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Schedule Context": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Sekretutka",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has Service Effect?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sekretutka",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sekretutka": {
+      "main": [
+        [
+          {
+            "node": "Route Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Decision": {
+      "main": [
+        [
+          {
+            "node": "If Therapist Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Therapist Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.5 Sekretutka_Therapist'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Finance Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Finance Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.4. Sekretutka_finance'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Habit Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Habit Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.3 Quest_Architect_Daily_Planner'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Quest Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Quest Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.3 Quest_Architect_Daily_Planner'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Rules Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Rules Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.0 Sekretutka_Game Rules'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Engine Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Engine Route": {
+      "main": [
+        [
+          {
+            "node": "Call '1.1 Sekretutka_ENGINE_updated'",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '1.5 Sekretutka_Therapist'": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '1.4. Sekretutka_finance'": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '1.1 Sekretutka_ENGINE_updated'": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '1.3 Quest_Architect_Daily_Planner'": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '1.0 Sekretutka_Game Rules'": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Response": {
+      "main": [
+        [
+          {
+            "node": "Send a text message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read BELIEFS": {
+      "main": [
+        [
+          {
+            "node": "Get Schedule Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Service Effect?": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG (Service Main)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Asia/Bangkok",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "02249b89-2949-40ae-9a72-056d11bfd390",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "sVqDOooYGrYBxeHP",
+  "tags": []
+}

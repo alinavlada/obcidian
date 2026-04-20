@@ -1,0 +1,400 @@
+{
+  "name": "1.4. Sekretutka_finance",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "TYPE"
+            },
+            {
+              "name": "CATEGORY"
+            },
+            {
+              "name": "CURRENCY"
+            },
+            {
+              "name": "AMOUNT",
+              "type": "number"
+            },
+            {
+              "name": "DETAILS"
+            },
+            {
+              "name": "DATE"
+            },
+            {
+              "name": "ACCOUNT"
+            },
+            {
+              "name": "ENTRY_ID"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "22a4180c-8707-4287-9cb0-3449a33f9878",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. СЧИТАЕМ УЖЕ ЗАПОЛНЕННЫЕ СТРОКИ\nconst allRows = $input.all();\n\nconst filledRows = allRows.filter(item => {\n    const details = item.json['  DETAILS  '] ?? item.json['DETAILS'];\n    const amount = item.json['AMOUNT'];\n    return (details && details.toString().trim() !== '') ||\n           (amount && amount.toString().trim() !== '');\n});\n\nconst count = filledRows.length;\nconst DATA_START_ROW = 3;\nconst targetRow = DATA_START_ROW + count;\n\nlet dataFromBot = {};\ntry {\n    dataFromBot = $('When Executed by Another Workflow').first().json;\n} catch (e) {\n    dataFromBot = {};\n}\n\nconst clean = (value) => String(value ?? '').trim();\nconst existingEntryId = clean(dataFromBot.ENTRY_ID);\nconst seed = `${clean(dataFromBot.DATE)}|${clean(dataFromBot.TYPE)}|${clean(dataFromBot.AMOUNT)}|${clean(dataFromBot.DETAILS)}|${targetRow}`;\nconst hash = Array.from(seed).reduce((acc, ch) => ((acc * 31) + ch.charCodeAt(0)) % 1000000007, 7);\nconst generatedEntryId = `fin_${Date.now()}_${hash}`;\n\nreturn {\n  json: {\n    ...dataFromBot,\n    ENTRY_ID: existingEntryId || generatedEntryId,\n    target_row: targetRow\n  }\n}"
+      },
+      "id": "aa91cc46-a087-4916-9341-66a4fed0ae02",
+      "name": "Calc Row Number",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "WALLET_Monthly Budget",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "cda7ba71-9f4c-414b-a5a8-8f21a813564f",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "WALLET_Monthly Budget",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TYPE": "={{ $json.TYPE }}",
+            "DATE": "={{ $json.DATE }}",
+            "AMOUNT": "={{ parseFloat($json.AMOUNT) }}",
+            "  CURRENCY  ": "={{ $json.CURRENCY }}",
+            "CATEGORY": "={{ $json.CATEGORY }}",
+            "  DETAILS  ": "={{ $json.DETAILS }}",
+            "ACCOUNT": "={{ $json.ACCOUNT }}",
+            "ENTRY_ID": "={{ $json.ENTRY_ID }}"
+          },
+          "matchingColumns": [
+            "ENTRY_ID"
+          ],
+          "schema": [
+            {
+              "id": "DATE",
+              "displayName": "DATE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TYPE",
+              "displayName": "TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CATEGORY",
+              "displayName": "CATEGORY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AMOUNT",
+              "displayName": "AMOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "  CURRENCY  ",
+              "displayName": "  CURRENCY  ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "  DETAILS  ",
+              "displayName": "  DETAILS  ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "BАТ",
+              "displayName": "BАТ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "РУБ",
+              "displayName": "РУБ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ACCOUNT",
+              "displayName": "ACCOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MONTH_KEY",
+              "displayName": "MONTH_KEY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SIGNED_AMOUNT",
+              "displayName": "SIGNED_AMOUNT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ENTRY_ID",
+              "displayName": "ENTRY_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefine": {
+            "values": {
+              "firstDataRow": "={{ $json.target_row }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        576,
+        0
+      ],
+      "id": "603dbd96-cde7-46d0-b9a5-270fe96dec95",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine event type based on finance transaction type\nconst input = $json || {};\nconst typeStr = String(input.TYPE || \"\").toLowerCase().trim();\n\n// Map transaction types to GOLD_GAINED or GOLD_LOST\nconst gainTypes = [\"income\", \"earnings\", \"salary\", \"bonus\", \"reward\", \"gain\", \"received\", \"deposit\"];\nconst eventType = gainTypes.some(gt => typeStr.includes(gt)) ? \"GOLD_GAINED\" : \"GOLD_LOST\";\n\nconst now = new Intl.DateTimeFormat('en-CA', {\n  timeZone: 'Asia/Bangkok',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n}).format(new Date());\n\nconst timestamp = now.replace(/^(\\d{4})-(\\d{2})-(\\d{2})\\s/, '$1-$2-$3 ');\n\nreturn {\n  json: {\n    ...input,\n    event_type: eventType,\n    timestamp: timestamp,\n    log_ready: true\n  }\n};"
+      },
+      "id": "f4a7d8e9-3c5f-4e2a-b1c9-7e8f9a0b1c2d",
+      "name": "Determine Event Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "GAME_LOG",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TS": "={{ $json.timestamp }}",
+            "EVENT_TYPE": "={{ $json.event_type }}",
+            "ENTITY_ID": "={{ $json.ENTRY_ID }}",
+            "ENTITY_NAME": "={{ $json.CATEGORY || $json.DETAILS || $json.TYPE || 'Wallet Entry' }}",
+            "ENTITY_GROUP": "WALLET",
+            "STATUS": "={{ $json.TYPE }}",
+            "VALUE": "={{ String(Math.abs($json.AMOUNT || 0)) }}",
+            "RESOURCE_TYPE": "={{ $json.CURRENCY || \"THB\" }}",
+            "DATE_REF": "={{ $json.DATE || '' }}",
+            "CONTEXT_JSON": "={{ JSON.stringify({ entry_id: $json.ENTRY_ID, amount: $json.AMOUNT, currency: $json.CURRENCY, category: $json.CATEGORY, details: $json.DETAILS, account: $json.ACCOUNT, transaction_type: $json.TYPE }) }}",
+            "COMMENT": "={{ $json.DETAILS || '' }}"
+          }
+        }
+      },
+      "id": "g5b8e9f0-4d6e-5f3b-c2d0-8f9a0b1c2d3e",
+      "name": "Append GAME_LOG Event",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1024,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc Row Number": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Calc Row Number",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Determine Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Event Type": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG Event": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "20d913ed-2f65-4a88-bf9f-c9391abd9f9d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "xFmyWUFSK1CwQxCC54lRF",
+  "tags": []
+}

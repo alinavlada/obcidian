@@ -1,0 +1,195 @@
+{
+  "name": "1.7. Sekretutka_LK_Render",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "36f48312-1003-4334-9697-a1c37e8d6f7c",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Достаем данные профиля\nconst p = $items(\"Read_PROFILE\")[0].json;\n// 2. Достаем список задач\nconst tasks = $items(\"Read_Task_List\");\n\n// Работа с временем (Бангкок)\nconst now = DateTime.now().setZone('Asia/Bangkok');\n\n// Функция для прогресс-баров\nfunction createBar(value, size = 10) {\n    const filled = Math.round(Math.min(Math.max(value, 0), 1) * size);\n    return \"█\".repeat(filled) + \"░\".repeat(size - filled);\n}\n\n// --- БЛОК ЗАДАЧ ---\nlet taskList = \"\";\nconst validTasks = tasks.filter(item => {\n    const taskName = item.json.TASK || item.json.Task || '';\n    const st = String(item.json.STATUS || item.json.status || '').toLowerCase();\n    return taskName && st !== '✅ completed' && st !== 'done' && st !== 'completed';\n});\nif (validTasks.length === 0) {\n    taskList = \"🎉 Все квесты на сегодня выполнены!\";\n} else {\n    validTasks.forEach(item => {\n        const t = item.json;\n        const taskName = t.TASK || t.Task || '';\n        const xpVal = t['XP| HP'] || t.REWARD_XP || 0;\n        const priority = String(t.PRIORITY || t.Priority || '').toLowerCase();\n        const icon = priority.includes('high') ? \"🔥\" : \"📍\";\n        taskList += `${icon} ${taskName} (${xpVal} XP)\\n`;\n    });\n}\n\n// --- БЛОК ДЕБАФФОВ ---\nlet debuffBlock = \"\";\nif (p.DEBUFF_EXPIRES) {\n    const expires = DateTime.fromFormat(p.DEBUFF_EXPIRES, \"yyyy-MM-dd HH:mm:ss\", { zone: 'Asia/Bangkok' });\n    if (now < expires) {\n        const timeLeft = expires.diff(now, ['hours', 'minutes']).toObject();\n        const timeStr = `${Math.floor(timeLeft.hours)}ч ${Math.floor(timeLeft.minutes)}м`;\n        debuffBlock = `\\n💀 **АКТИВНЫЙ ДЕБАФФ:**\\n└ ${p.DEBUFF_NAME || \"Проклятие Босса\"}\\n└ Спадёт через: ${timeStr}\\n`;\n    }\n}\n\n// --- БЛОК БОССА ---\nconst bossName = p.BOSS_NAME || '';\nconst bossBlock = bossName\n    ? `⚔️ **ТЕКУЩИЙ БОСС:** ${bossName}\\n${debuffBlock}`\n    : '';\n\n// --- ФИНАЛЬНЫЙ РЕНДЕР ---\nconst hpCurrent = Number(p.HP_CURRENT) || 0;\nconst totalProgress = Number(p.TOTAL_PROGRESS) || 0;\nconst isLevelReady = String(p.LEVEL_READY || '').toUpperCase() === 'TRUE';\n\nconst message = `\n📊 **ЛИЧНЫЙ КАБИНЕТ: ${p.PLAYER_STAGE || '—'}**\n\n❤️ **HP:** ${hpCurrent}/100 [${createBar(hpCurrent / 100)}]\n✨ **Прогресс уровня:** ${Math.round(totalProgress * 100)}% [${createBar(totalProgress)}]\n\n${bossBlock}──────────────────\n📜 **АКТИВНЫЕ КВЕСТЫ:**\n${taskList}──────────────────\n\n${isLevelReady ? \"🌟 **ПЕРЕХОД ДОСТУПЕН!**\\nИспользуй /level_up\" : \"\"}\n`.trim();\n\nreturn { lk_message: message };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -16
+      ],
+      "id": "bb8d68ab-042c-4896-85b9-a497bd627ad0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "145771888",
+        "text": "={{ $json.lk_message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1168,
+        -16
+      ],
+      "id": "01415129-f5d2-4057-b2c4-5307dcee2359",
+      "name": "Send a text message",
+      "webhookId": "66a35b89-7e67-4780-a894-ddef90741ba5",
+      "credentials": {
+        "telegramApi": {
+          "id": "WiPgaZ7ropgQz6RW",
+          "name": "@Secretutka_AV_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "PROFILE_GAME",
+          "mode": "name",
+          "cachedResultName": "PROFILE_GAME"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        -16
+      ],
+      "id": "12f6b405-5924-486a-968a-80ce966fa856",
+      "name": "Read_PROFILE",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029542969,
+          "mode": "list",
+          "cachedResultName": "Task List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1029542969"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "DUE_DATE",
+              "lookupValue": "={{ $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 6,
+              "firstDataRow": 7
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "f89a706b-d7d4-4800-809f-fbc72b87e8c3",
+      "name": "Read_Task_List",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Read_PROFILE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read_PROFILE": {
+      "main": [
+        [
+          {
+            "node": "Read_Task_List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read_Task_List": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "1f2d41cd-4c36-461d-a4ba-596b4f3f6183",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "foKDWtnnUWEXcRwiNLhsJ",
+  "tags": []
+}

@@ -1,0 +1,1886 @@
+{
+  "name": "1.3 Quest_Architect_Daily_Planner",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "mode"
+            },
+            {
+              "name": "user_input"
+            },
+            {
+              "name": "user_id"
+            },
+            {
+              "name": "item_id"
+            },
+            {
+              "name": "value",
+              "type": "number"
+            },
+            {
+              "name": "date"
+            },
+            {
+              "name": "status"
+            },
+            {
+              "name": "task_name"
+            },
+            {
+              "name": "task_status"
+            },
+            {
+              "name": "time_slot"
+            },
+            {
+              "name": "goal_slot"
+            },
+            {
+              "name": "goal_text"
+            },
+            {
+              "name": "goal_deadline"
+            },
+            {
+              "name": "goal_reward"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1504,
+        8720
+      ],
+      "id": "4d11775a-4209-4d7e-abdd-3c636e6721f8",
+      "name": "Trigger"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2384,
+        9312
+      ],
+      "id": "da0c082f-d805-46c3-9b5f-d8996f7c533d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ftSsgI21ua8HrBuc",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "systemMessage": "Ты — узкий AI-слой внутри workflow Quest Architect Sekretutka.\n\nРаботай только по JSON-контексту, который тебе передают.\nОтвечай только валидным JSON без markdown и без пояснений.\n\nПоддерживаемые режимы:\n- TASK_CAPTURE\n- PLANNER\n- GOAL_DECOMPOSER\n- HABIT_LOG\n- EVENING_REVIEW\n\nЖесткие правила:\n- не пиши обычный текст;\n- не считай игровые формулы;\n- не придумывай лишние поля;\n- максимум 10 шагов в GOAL_DECOMPOSER;\n- если информации не хватает, ставь needs_clarification=true и верни missing_slots/questions;\n- если задача большая и больше похожа на цель, можешь выставить suggest_decomposition=true;\n- для TASK_CAPTURE верни task или tasks с минимально нужными полями;\n- для PLANNER верни до 3 focuses и до 2 questions;\n- для GOAL_DECOMPOSER верни goal_summary, steps[], shared_deadline, reward_suggestion;\n- для HABIT_LOG AI не нужен: не генерируй task/task list payload и не подменяй deterministic habit branch;\n- для EVENING_REVIEW верни review_points и questions.\n\nФормат TASK_CAPTURE:\n{\n  \"mode\": \"TASK_CAPTURE\",\n  \"needs_clarification\": false,\n  \"missing_slots\": [],\n  \"tasks\": [\n    {\n      \"title\": \"...\",\n      \"start_date\": \"YYYY-MM-DD or null\",\n      \"due_date\": \"YYYY-MM-DD or null\",\n      \"status\": \"Pending / In Progress / Completed / ...\",\n      \"category\": \"Career / Health / ... or null\",\n      \"priority\": \"High / Medium / Low or null\",\n      \"track\": \"Craft / Vitality / Social or null\",\n      \"recurring\": false,\n      \"frequency\": null,\n      \"important\": false,\n      \"urgent\": false,\n      \"notes\": null\n    }\n  ],\n  \"reply_hint\": \"...\"\n}\n\nФормат PLANNER:\n{\n  \"mode\": \"PLANNER\",\n  \"needs_clarification\": false,\n  \"missing_slots\": [],\n  \"day_shape\": \"light / balanced / sprint / recovery\",\n  \"focuses\": [\"...\"],\n  \"questions\": [\"...\"],\n  \"suggest_decomposition\": false,\n  \"reply_hint\": \"...\"\n}\n\nФормат GOAL_DECOMPOSER:\n{\n  \"mode\": \"GOAL_DECOMPOSER\",\n  \"needs_clarification\": false,\n  \"missing_slots\": [],\n  \"goal_summary\": \"...\",\n  \"steps\": [\"...\"],\n  \"shared_deadline\": \"YYYY-MM-DD or null\",\n  \"reward_suggestion\": \"...\",\n  \"reply_hint\": \"...\"\n}\n\nФормат EVENING_REVIEW:\n{\n  \"mode\": \"EVENING_REVIEW\",\n  \"needs_clarification\": false,\n  \"missing_slots\": [],\n  \"review_points\": [\"...\"],\n  \"questions\": [\"...\"],\n  \"reply_hint\": \"...\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        2480,
+        9040
+      ],
+      "id": "495a11cc-5283-4da2-a4a4-2d64051f94e3",
+      "name": "Quest Architect Agent",
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const context = $('Build AI Context').first().json || {};\nconst output = String(($input.first().json || {}).output || '').trim();\n\nfunction parseJson(text) {\n  try { return JSON.parse(text); } catch { return null; }\n}\nfunction extractJson(text) {\n  if (!text) return null;\n  const direct = parseJson(text);\n  if (direct) return direct;\n  const fenced = text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i);\n  if (fenced) {\n    const parsed = parseJson(fenced[1].trim());\n    if (parsed) return parsed;\n  }\n  const first = text.indexOf('{');\n  const last = text.lastIndexOf('}');\n  if (first !== -1 && last !== -1 && last > first) {\n    return parseJson(text.slice(first, last + 1));\n  }\n  return null;\n}\n\nfunction clean(value) { return String(value ?? '').trim(); }\nfunction parseBool(value) {\n  if (typeof value === 'boolean') return value;\n  const s = clean(value).toLowerCase();\n  if (['true','yes','y','1','done'].includes(s)) return true;\n  if (['false','no','n','0','skip','skipped'].includes(s)) return false;\n  return null;\n}\nfunction normalizeIsoDate(value, fallback = null) {\n  const s = clean(value);\n  if (!s) return fallback;\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const us = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (us) return `${us[3]}-${String(us[1]).padStart(2, '0')}-${String(us[2]).padStart(2, '0')}`;\n  if (/^today$/i.test(s)) return context.today_bkk || fallback;\n  if (/^tomorrow$/i.test(s)) return $now.setZone('Asia/Bangkok').plus({ days: 1 }).toFormat('yyyy-MM-dd');\n  if (/^yesterday$/i.test(s)) return $now.setZone('Asia/Bangkok').minus({ days: 1 }).toFormat('yyyy-MM-dd');\n  return fallback;\n}\nfunction normalizeLoose(value) {\n  return clean(value)\n    .replace(/[^\\p{L}\\p{N}\\s]/gu, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .toLowerCase();\n}\nconst statusMap = new Map([\n  ['completed', '✅ Completed'],\n  ['done', '✅ Completed'],\n  ['complete', '✅ Completed'],\n  ['in progress', '🔄 In Progress'],\n  ['progress', '🔄 In Progress'],\n  ['pending', '⏳ Pending'],\n  ['on hold', '✋ On Hold'],\n  ['hold', '✋ On Hold'],\n  ['delayed', '🛑 Delayed'],\n  ['overdue', '⚠️ Overdue'],\n  ['under review', '🔍 Under Review'],\n  ['review', '🔍 Under Review'],\n  ['cancelled', '🚫 Canceled'],\n  ['canceled', '🚫 Canceled'],\n]);\nfunction normalizeStatus(value) {\n  const raw = clean(value);\n  if (!raw) return '⏳ Pending';\n  if ([...statusMap.values()].includes(raw)) return raw;\n  return statusMap.get(normalizeLoose(raw)) || '⏳ Pending';\n}\nconst priorityMap = new Map([\n  ['high', '🟥 High'],\n  ['medium', '🟪 Medium'],\n  ['mid', '🟪 Medium'],\n  ['low', '🟩 Low']\n]);\nfunction normalizePriority(value, important, urgent) {\n  const raw = clean(value);\n  if ([...priorityMap.values()].includes(raw)) return raw;\n  const byText = priorityMap.get(normalizeLoose(raw));\n  if (byText) return byText;\n  if (important && urgent) return '🟥 High';\n  if (important || urgent) return '🟪 Medium';\n  return '🟩 Low';\n}\nconst categoryMap = new Map([\n  ['personal', '💖 Personal'],\n  ['family', '👨‍👩‍👧‍👦 Family'],\n  ['health', '🫁 Health'],\n  ['career', '💻 Career '],\n  ['finance', '💵 Finances'],\n  ['finances', '💵 Finances'],\n  ['household', '🏠 Household'],\n  ['hobby', '🎨 Hobby'],\n  ['travel', '✈️ Travel'],\n  ['friends', '👯‍♀️ Friends'],\n  ['appointment', '🗓 Appointment'],\n  ['contact', '💌 Contact'],\n  ['beauty', '💅 Beauty'],\n  ['education', '📖 Education'],\n  ['other', '⚡️ Chaos'],\n  ['chaos', '⚡️ Chaos']\n]);\nfunction normalizeCategory(value) {\n  const raw = clean(value);\n  for (const v of categoryMap.values()) if (raw === v) return v;\n  return categoryMap.get(normalizeLoose(raw)) || '⚡️ Chaos';\n}\nconst trackMap = new Map([\n  ['craft', '💪🏻 Craft'],\n  ['vitality', '🫀 Vitality'],\n  ['social', '🗣️ Social']\n]);\nconst categoryTrackMap = new Map([\n  ['💖 Personal', '🫀 Vitality'],\n  ['🫁 Health', '🫀 Vitality'],\n  ['🏠 Household', '🫀 Vitality'],\n  ['💅 Beauty', '🫀 Vitality'],\n  ['💻 Career ', '💪🏻 Craft'],\n  ['💵 Finances', '💪🏻 Craft'],\n  ['🎨 Hobby', '💪🏻 Craft'],\n  ['📖 Education', '💪🏻 Craft'],\n  ['✈️ Travel', '🗣️ Social'],\n  ['👨‍👩‍👧‍👦 Family', '🗣️ Social'],\n  ['👯‍♀️ Friends', '🗣️ Social'],\n  ['🗓 Appointment', '🗣️ Social'],\n  ['💌 Contact', '🗣️ Social'],\n  ['⚡️ Chaos', '💪🏻 Craft']\n]);\nfunction normalizeTrack(value, category) {\n  const raw = clean(value);\n  for (const v of trackMap.values()) if (raw === v) return v;\n  const byText = trackMap.get(normalizeLoose(raw));\n  if (byText) return byText;\n  return categoryTrackMap.get(category) || '💪🏻 Craft';\n}\nfunction computeXp(priority, task) {\n  const explicit = Number(task.xp ?? task.xp_value ?? task['XP| HP'] ?? task.xp_hp);\n  if (Number.isFinite(explicit) && explicit > 0) return explicit;\n  if (priority === '🟥 High') return 30;\n  if (priority === '🟪 Medium') return 20;\n  return 10;\n}\nfunction pluralTasks(n) {\n  if (n % 10 === 1 && n % 100 !== 11) return 'задачу';\n  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'задачи';\n  return 'задач';\n}\n\nconst parsed = extractJson(output) || {};\nconst aiMode = clean(parsed.mode || context.mode).toUpperCase() || 'TASK_CAPTURE';\nconst tasksSource = Array.isArray(parsed.tasks)\n  ? parsed.tasks\n  : parsed.task\n    ? [parsed.task]\n    : [];\n\nlet needsClarification = !!parsed.needs_clarification;\nconst missingSlots = Array.isArray(parsed.missing_slots) ? parsed.missing_slots.filter(Boolean) : [];\nconst questions = Array.isArray(parsed.questions) ? parsed.questions.filter(Boolean) : [];\n\nconst taskRows = [];\nfor (const task of tasksSource) {\n  const title = clean(task.title || task.task || task.name);\n  if (!title) {\n    needsClarification = true;\n    if (!missingSlots.includes('title')) missingSlots.push('title');\n    continue;\n  }\n  const recurring = parseBool(task.recurring) ?? false;\n  const explicitImportant = parseBool(task.important);\n  const explicitUrgent = parseBool(task.urgent);\n  const category = normalizeCategory(task.category || task.category_hint);\n  const priority = normalizePriority(task.priority, explicitImportant, explicitUrgent);\n  const important = explicitImportant ?? (priority === '🟥 High');\n  const urgent = explicitUrgent ?? false;\n  const track = normalizeTrack(task.track || task.track_hint, category);\n  const startDate = normalizeIsoDate(task.start_date, context.today_bkk || null);\n  const dueDate = normalizeIsoDate(task.due_date, recurring ? null : startDate);\n  const endDate = normalizeIsoDate(task.end_date, normalizeStatus(task.status) === '✅ Completed' ? (dueDate || startDate) : null);\n  const frequency = recurring ? clean(task.frequency) || 'Every Week' : '';\n  const notes = clean(task.notes || task.comment || task.time_block);\n  taskRows.push({\n    task: title,\n    xp_value: computeXp(priority, task),\n    recurring,\n    frequency,\n    start_date: startDate,\n    end_date: endDate,\n    due_date: dueDate,\n    status: normalizeStatus(task.status),\n    category,\n    priority,\n    track,\n    important,\n    urgent,\n    notes\n  });\n}\n\nconst hasTasks = !needsClarification && taskRows.length > 0;\n\nconst goalWrites = [];\nconst goalGameLogRows = [];\nif (!needsClarification && aiMode === 'GOAL_DECOMPOSER') {\n  const steps = Array.isArray(parsed.steps) ? parsed.steps.map(item => clean(item)).filter(Boolean).slice(0, 10) : [];\n  const goalSlot = Number(context.goal_slot || 1);\n  if (!steps.length) {\n    needsClarification = true;\n    if (!missingSlots.includes('steps')) missingSlots.push('steps');\n  } else {\n    const textCols = ['G','L','Q','V','AA','AF','AK','AP','AU','AZ'];\n    const checkboxCols = ['F','K','P','U','Z','AE','AJ','AO','AT','AY'];\n    const deadlineCols = ['H','M','R','W','AB','AG','AL','AQ','AV','BA'];\n    const slotIndex = Math.max(0, Math.min(9, goalSlot - 1));\n    const textCol = textCols[slotIndex];\n    const checkboxCol = checkboxCols[slotIndex];\n    const deadlineCol = deadlineCols[slotIndex];\n    const textValues = [];\n    for (let row = 17; row <= 35; row++) {\n      const stepIndex = Math.floor((row - 17) / 2);\n      const isOddTarget = row % 2 === 1;\n      textValues.push([isOddTarget ? (steps[stepIndex] || '') : '']);\n    }\n    const checkboxValues = [];\n    for (let row = 17; row <= 35; row++) {\n      checkboxValues.push([row % 2 === 1 ? false : '']);\n    }\n    goalWrites.push({ range: `PROFILE_GAME!${checkboxCol}17:${checkboxCol}35`, values: checkboxValues });\n    goalWrites.push({ range: `PROFILE_GAME!${textCol}17:${textCol}35`, values: textValues });\n    goalWrites.push({ range: `PROFILE_GAME!${deadlineCol}37`, values: [[normalizeIsoDate(parsed.shared_deadline || context.goal_deadline, '')]] });\n    goalWrites.push({ range: `PROFILE_GAME!${deadlineCol}38`, values: [[clean(parsed.reward_suggestion || context.goal_reward)]] });\n    const nowTs = $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\n    const attemptId = clean(context.active_attempt_id || '');\n    const levelName = clean(context.level_name || '');\n    const stage = clean(context.player_stage || 'EARLY');\n    goalGameLogRows.push([nowTs, 'GOAL_DECOMPOSED', 'QUEST_ARCHITECT', 'GOAL', String(goalSlot), clean(selectedGoal || parsed.goal_summary || context.selected_goal), '', 'UPDATED', String(steps.length), 'STEPS', '', '', context.today_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'), stage, levelName, attemptId, JSON.stringify({ goal_slot: goalSlot, steps, shared_deadline: normalizeIsoDate(parsed.shared_deadline || context.goal_deadline, ''), reward_suggestion: clean(parsed.reward_suggestion || context.goal_reward) }), 'Goal decomposition записан в PROFILE_GAME']);\n  }\n}\n\nlet responseText = clean(parsed.reply_hint);\nif (needsClarification) {\n  responseText = questions[0] || (missingSlots.length ? `Нужно уточнить: ${missingSlots.join(', ')}.` : 'Нужно чуть больше деталей.');\n} else if (aiMode === 'GOAL_DECOMPOSER' && goalWrites.length) {\n  const stepCount = (Array.isArray(parsed.steps) ? parsed.steps.filter(Boolean).length : 0) || 0;\n  responseText = responseText || `Разложила цель на ${stepCount} шагов.`;\n} else if (hasTasks) {\n  responseText = responseText || `Подготовила ${taskRows.length} ${pluralTasks(taskRows.length)} к записи.`;\n} else if (aiMode === 'PLANNER') {\n  const focuses = Array.isArray(parsed.focuses) ? parsed.focuses.filter(Boolean).slice(0, 3) : [];\n  const lines = [];\n  if (focuses.length) lines.push(`Фокус дня: ${focuses.join(' • ')}`);\n  if (questions[0]) lines.push(questions[0]);\n  if (parsed.suggest_decomposition) lines.push('Если хочешь, могу сразу разложить цель на шаги.');\n  responseText = responseText || lines.join('\\n');\n} else if (aiMode === 'EVENING_REVIEW') {\n  const points = Array.isArray(parsed.review_points) ? parsed.review_points.filter(Boolean).slice(0, 3) : [];\n  const lines = [];\n  if (points.length) lines.push(`Вечерний фокус: ${points.join(' • ')}`);\n  if (questions[0]) lines.push(questions[0]);\n  responseText = responseText || lines.join('\\n');\n}\n\nreturn [{\n  json: {\n    mode: aiMode,\n    needs_clarification: needsClarification,\n    missing_slots: missingSlots,\n    questions,\n    response_text: responseText || 'Сейчас не удалось собрать ответ Архитектора. Нужна еще одна попытка.',\n    task_rows: taskRows,\n    has_tasks: hasTasks,\n    goal_writes: goalWrites,\n    has_goal_writes: goalWrites.length > 0,\n    goal_game_log_rows: goalGameLogRows,\n    goal_slot: context.goal_slot || null,\n    selected_goal: context.selected_goal || '',\n    plan_date_hint: (taskRows[0] && (taskRows[0].due_date || taskRows[0].start_date)) || context.today_bkk || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        9040
+      ],
+      "id": "3b5e5602-1810-48a7-ba27-d681fb7fa6d7",
+      "name": "Parse Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-has-tasks",
+              "leftValue": "={{ $json.has_tasks }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3408,
+        9184
+      ],
+      "id": "5717412c-4841-44f3-afda-f2963869d552",
+      "name": "Has Tasks?"
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=PROFILE_GAME!C5:C23&ranges=PROFILE_GAME!C27:D40",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2192,
+        9040
+      ],
+      "id": "04cb2beb-ea53-42bd-af85-e9572df8f687",
+      "name": "Read PROFILE_GAME",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "return-resp-001",
+              "name": "response",
+              "value": "={{ (() => {\n  const parts = [];\n  try {\n    const parsed = $('Parse Response').first().json || {};\n    if (parsed.response_text) parts.push(String(parsed.response_text).trim());\n  } catch (e) {}\n  try {\n    const goal = $('Update Goal Block').first().json || {};\n    if (goal.responses || goal.updatedData || goal.totalUpdatedCells) parts.push('🧩 Goal block обновлён.');\n  } catch (e) {}\n  try {\n    const task = $('Build Task List Writes').first().json || {};\n    if (task.created_count) parts.push('🗂 В Task List добавлено: ' + task.created_count + '.');\n    if (task.updated_count) parts.push('✏️ В Task List обновлено: ' + task.updated_count + '.');\n    if (Array.isArray(task.skipped_goal_titles) && task.skipped_goal_titles.length) parts.push('⚠️ Top goals не записываю в Task List — сначала разложи их на шаги.');\n  } catch (e) {}\n  try {\n    const plan = $('Build Daily Planner Writes').first().json || {};\n    if (plan.scheduled_count) parts.push('📅 В daily planner разложено: ' + plan.scheduled_count + '.');\n    if (Array.isArray(plan.conflicts) && plan.conflicts.length) parts.push('⚠️ Не удалось разложить: ' + plan.conflicts.map(c => c.task).join(', ') + '.');\n  } catch (e) {}\n  return parts.filter(Boolean).join('\\n\\n') || 'Сейчас Архитектор не смог собрать итоговый ответ. Попробуй еще раз.';\n})() }}",
+              "type": "string"
+            },
+            {
+              "id": "return-ok-001",
+              "name": "ok",
+              "value": "={{ (() => {\n  try {\n    const parsed = $('Parse Response').first().json || {};\n    return !parsed.needs_clarification && !!(parsed.response_text || parsed.task_rows?.length || parsed.goal_writes?.length);\n  } catch (e) { return true; }\n})() }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4512,
+        9056
+      ],
+      "id": "fc971a2c-e103-40df-936c-4dc9ae433dcc",
+      "name": "Return Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "habit-mode",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "HABIT_LOG",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "653c5428-4c7a-434b-9a14-4a3ea6545daa",
+      "name": "If Habit Mode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1712,
+        8720
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "task-status-mode",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "UPDATE_TASK_STATUS",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e865af72-dac2-4894-b85c-040d19370b74",
+      "name": "If Task Status Mode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1904,
+        8864
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 154686700,
+          "mode": "list",
+          "cachedResultName": "GAME_RULES",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=154686700"
+        },
+        "options": {}
+      },
+      "id": "4013a937-04aa-4a49-8121-c5bad4167300",
+      "name": "Read GAME_RULES (Quest)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2160,
+        8576
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Trigger').first().json || {};\nconst rawItemId = String(trigger.item_id || '').trim();\nconst count = Number(trigger.value) || 1;\nconst date = String(trigger.date || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'));\nconst status = String(trigger.status || 'DONE').trim().toUpperCase();\nconst aliasMap = {\n  reading: 'read',\n  read: 'read',\n  game_chek: 'game_check',\n  game_check: 'game_check',\n  walk: 'walk',\n  body_exercise: 'body_exercise',\n  exercise: 'body_exercise',\n  bad_plus: 'bad_plus',\n  nad_plus: 'bad_plus',\n  feet_exercise: 'feet_exercise',\n  fiber_daily: 'fiber_daily',\n  fiber: 'fiber_daily',\n  math_mi: 'math_mi',\n  thai_mi: 'thai_mi',\n  antiparasitic: 'antiparasitic',\n  water: 'water',\n  client_search: 'client_search',\n  post_content: 'post_content',\n  posts: 'post_content',\n  client_calls: 'client_calls',\n  sales_calls: 'client_calls',\n  youtube_video: 'youtube_video'\n};\nconst active = (value) => {\n  const s = String(value ?? '').trim().toLowerCase();\n  return ['true', 'yes', '1'].includes(s) || value === true;\n};\nconst rules = $('Read GAME_RULES (Quest)').all().map(i => i.json).filter(r => !String(r.ACTIVE || '').trim() || active(r.ACTIVE));\nconst mappedId = aliasMap[rawItemId] || rawItemId;\nconst rule = rules.find(r => String(r.ID_NAME || '').trim() === rawItemId)\n  || rules.find(r => String(r.ID_NAME || '').trim() === mappedId)\n  || {};\nconst canonicalId = String(rule.ID_NAME || '').trim() || mappedId;\nconst ruleValue = Number(rule.VALUE) || 0;\nconst resourceType = String(rule.RESOURCE_TYPE || 'XP_GOLD').trim() || 'XP_GOLD';\nconst track = String(rule.TRACK || 'GENERAL').trim() || 'GENERAL';\nconst rpgName = String(rule.RPG_NAME || rawItemId || canonicalId).trim();\nconst isDone = ['DONE', 'COMPLETED', 'TRUE'].includes(status);\nconst delta = isDone ? ruleValue * count : 0;\nconst ruleFound = !!rule.ID_NAME;\nconst eventType = isDone ? 'HABIT_DONE' : 'HABIT_SKIPPED';\nconst message = !ruleFound\n  ? `⚠️ Не нашла правило привычки для ${rawItemId}. Ничего не записала.`\n  : isDone\n    ? `✅ ${rpgName} записано в GAME_LOG. ${delta ? `+${delta} ${resourceType}` : 'Без изменения ресурса.'}`\n    : `⏭ ${rpgName} записано в GAME_LOG как пропуск.`;\nconst hpGainDelta = (isDone && (resourceType === 'HP' || track === 'VITALITY')) ? ruleValue * count : 0;\nreturn [{ json: {\n  raw_item_id: rawItemId,\n  item_id: canonicalId,\n  value: count,\n  date,\n  status: isDone ? 'DONE' : 'SKIPPED',\n  is_done: isDone,\n  delta,\n  resource_type: resourceType,\n  track,\n  rpg_name: rpgName,\n  event_type: eventType,\n  message,\n  rule_found: ruleFound,\n  hp_gain_delta: hpGainDelta\n} }];"
+      },
+      "id": "2c65196b-ce82-4069-baff-d3cffe23d4f0",
+      "name": "Calc Habit Logic (Quest)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        8576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "habit-response",
+              "name": "response",
+              "value": "={{ $(\"Calc Habit Logic (Quest)\").first().json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "habit-ok",
+              "name": "ok",
+              "value": "={{ $(\"Calc Habit Logic (Quest)\").first().json.rule_found }}",
+              "type": "boolean"
+            },
+            {
+              "id": "habit-item",
+              "name": "item_id",
+              "value": "={{ $(\"Calc Habit Logic (Quest)\").first().json.item_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b45d97b2-20bd-49cf-a8ca-f47e812e1d6e",
+      "name": "Return Habit Result (Quest)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3328,
+        8576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Response').first().json || {};\nconst nowDate = $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd');\nconst candidate = String(parsed.plan_date_hint || nowDate).trim() || nowDate;\nconst plan_date = /^\\d{4}-\\d{2}-\\d{2}$/.test(candidate) ? candidate : nowDate;\nconst sheet_name = plan_date.slice(2).replace(/-/g, '.');\nconst quoted_sheet_name = `'${sheet_name.replace(/'/g, \"''\")}'`;\nreturn [{ json: { plan_date, sheet_name, quoted_sheet_name } }];"
+      },
+      "id": "61fff5c0-20f8-4440-bf6e-5e4ae1359b04",
+      "name": "Resolve Plan Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4336,
+        8944
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1029542969,
+          "mode": "list",
+          "cachedResultName": "Task List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit#gid=1029542969"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 6,
+              "firstDataRow": 7
+            }
+          }
+        }
+      },
+      "id": "3730b893-a509-42a8-afc4-595ba7756578",
+      "name": "Read Task List For Day",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3120,
+        8912
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges={{ encodeURIComponent($('Resolve Plan Date').first().json.quoted_sheet_name + '!F15:H50') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "394dc427-458c-4be9-b33e-198ebf35e3f9",
+      "name": "Read Daily Planner Grid",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3344,
+        8912
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const plan = $('Resolve Plan Date').first().json;\nconst sheetRef = plan.quoted_sheet_name || `'${String(plan.sheet_name || '').replace(/'/g, \"''\")}'`;\nconst rows = $('Read Task List For Day').all().map(i => i.json);\nconst gridRaw = $('Read Daily Planner Grid').first().json || {};\nconst valueRanges = gridRaw.valueRanges || [];\nconst gridValues = (valueRanges[0] && valueRanges[0].values) || [];\nconst startRow = 15;\nconst activeStatuses = new Set(['⏳ Pending','🔄 In Progress','✋ On Hold','🛑 Delayed','⚠️ Overdue','🔍 Under Review']);\nfunction toIso(value) {\n  const s = String(value || '').trim();\n  if (!s) return '';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const us = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (us) return `${us[3]}-${String(us[1]).padStart(2, '0')}-${String(us[2]).padStart(2, '0')}`;\n  return s;\n}\nfunction stripLabel(value) {\n  return String(value || '').replace(/[^\\p{L}\\p{N}\\s]/gu, ' ').replace(/\\s+/g, ' ').trim().toLowerCase();\n}\nfunction parseDisplayMinutes(label) {\n  const s = String(label || '').trim();\n  const match = s.match(/^(\\d{1,2}):(\\d{2})\\s*(AM|PM)$/i);\n  if (!match) return null;\n  let hour = parseInt(match[1], 10) % 12;\n  const minute = parseInt(match[2], 10);\n  if (String(match[3]).toUpperCase() === 'PM') hour += 12;\n  return hour * 60 + minute;\n}\nfunction parseExplicitMinutes(text) {\n  const s = String(text || '').trim();\n  let match = s.match(/\\b(1[0-2]|0?[1-9])(?::([0-5][0-9]))?\\s*(AM|PM)\\b/i);\n  if (match) {\n    let hour = parseInt(match[1], 10) % 12;\n    const minute = parseInt(match[2] || '0', 10);\n    if (String(match[3]).toUpperCase() === 'PM') hour += 12;\n    return hour * 60 + minute;\n  }\n  match = s.match(/\\b([01]?\\d|2[0-3])[:.]([0-5][0-9])\\b/);\n  if (match) return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);\n  match = s.match(/\\b([01]?\\d|2[0-3])\\b/);\n  if (match) return parseInt(match[1], 10) * 60;\n  return null;\n}\nfunction weekdayIndex(iso) {\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(iso || ''))) return null;\n  return new Date(`${iso}T00:00:00Z`).getUTCDay();\n}\nconst slots = [];\nlet rollover = 0;\nlet previousBaseMinutes = null;\nfor (let i = 0; i < gridValues.length; i++) {\n  const rowVals = gridValues[i] || [];\n  const label = String(rowVals[0] || '').trim();\n  const baseMinutes = parseDisplayMinutes(label);\n  if (baseMinutes !== null && previousBaseMinutes !== null && baseMinutes < previousBaseMinutes) rollover += 1440;\n  if (baseMinutes !== null) previousBaseMinutes = baseMinutes;\n  slots.push({\n    row: startRow + i,\n    label,\n    minutes: baseMinutes === null ? null : baseMinutes + rollover,\n    task: String(rowVals[1] || '').trim()\n  });\n}\nconst slotRows = slots.map(slot => slot.row);\nconst occupied = new Map(slots.map(slot => [slot.row, slot.task]));\nfunction slotRowsBetween(minFrom, minTo) {\n  return slots.filter(slot => slot.minutes !== null && slot.minutes >= minFrom && slot.minutes <= minTo).map(slot => slot.row);\n}\nfunction preferredRows(task) {\n  const category = stripLabel(task['Category']);\n  const track = stripLabel(task['Track']);\n  const text = `${task['Task'] || ''} ${task['Notes'] || ''}`.toLowerCase();\n  const explicitMinutes = parseExplicitMinutes(text);\n  if (explicitMinutes !== null) {\n    const normalized = explicitMinutes < 7 * 60 ? explicitMinutes + 1440 : explicitMinutes;\n    const exact = slots.find(slot => slot.minutes === normalized);\n    if (exact) return [exact.row];\n    const nearest = slots\n      .filter(slot => slot.minutes !== null)\n      .sort((a, b) => Math.abs(a.minutes - normalized) - Math.abs(b.minutes - normalized))[0];\n    return nearest ? [nearest.row] : [];\n  }\n  if (/(завтрак|breakfast|заряд|йога|медитац|утро|body|walk|пешкадрал|вода)/.test(text) || track === 'vitality' || category === 'health') {\n    return [...slotRowsBetween(7 * 60, 9 * 60 + 30), ...slotRowsBetween(20 * 60, 22 * 60 + 30)];\n  }\n  if (/(обед|lunch|ужин|dinner|snack)/.test(text)) {\n    return [...slotRowsBetween(12 * 60, 14 * 60), ...slotRowsBetween(18 * 60, 20 * 60)];\n  }\n  if (/(школ|клиент|контент|работ|career|business|education|meeting|созвон|звонок)/.test(text) || track === 'craft' || ['career','business','education','finances','finance','hobby'].includes(category)) {\n    return slotRowsBetween(9 * 60, 18 * 60 + 30);\n  }\n  if (track === 'social' || ['social','family','friends','appointment','contact'].includes(category) || /(мама|подруг|семь|встреч|звон)/.test(text)) {\n    return slotRowsBetween(16 * 60, 21 * 60 + 30);\n  }\n  if (/(batch cooking|cook|дом|household|уборк|посуд|готов)/.test(text) || category === 'household') {\n    return slotRowsBetween(17 * 60, 21 * 60);\n  }\n  return slotRows.slice();\n}\nconst candidates = rows.filter(task => {\n  const status = String(task['Status'] || '').trim();\n  if (!activeStatuses.has(status)) return false;\n  const recurring = String(task['Recurring?'] || '').trim().toUpperCase() === 'TRUE';\n  const startDate = toIso(task['Start Date'] || '');\n  const dueDate = toIso(task['Due Date'] || '');\n  const endDate = toIso(task['End Date'] || '');\n  if (recurring) {\n    if (!startDate || startDate > plan.plan_date) return false;\n    if (endDate && endDate < plan.plan_date) return false;\n    const frequency = stripLabel(task['Frequency']);\n    if (frequency.includes('day')) return true;\n    if (frequency.includes('week')) return weekdayIndex(startDate) === weekdayIndex(plan.plan_date);\n    if (frequency.includes('month')) return Number(startDate.slice(8, 10)) === Number(plan.plan_date.slice(8, 10));\n    return startDate === plan.plan_date;\n  }\n  const taskDate = dueDate || startDate;\n  return taskDate === plan.plan_date;\n});\nconst seen = new Set();\nconst tasks = candidates.filter(task => {\n  const key = String(task['Task'] || '').trim();\n  if (!key || seen.has(key)) return false;\n  seen.add(key);\n  return true;\n});\nconst updates = [];\nconst conflicts = [];\nconst nowTs = $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nfor (const task of tasks) {\n  const prefs = preferredRows(task);\n  let chosen = null;\n  for (const row of (prefs.length ? prefs : slotRows)) {\n    if (!occupied.get(row)) {\n      chosen = row;\n      break;\n    }\n  }\n  if (!chosen) {\n    conflicts.push({ task: task['Task'], reason: 'no free slot' });\n    continue;\n  }\n  occupied.set(chosen, String(task['Task']).trim());\n  updates.push({ range: `${sheetRef}!G${chosen}:H${chosen}`, values: [[String(task['Task']).trim(), false]] });\n}\nconst scheduledTasks = updates.map(update => update.values[0][0]);\nconst gameLogRows = updates.length ? [[nowTs, 'DAY_PLAN_UPDATED', 'QUEST_ARCHITECT', 'PLANNER', plan.sheet_name, plan.sheet_name, '', 'UPDATED', String(updates.length), 'TASKS', '', 'DAY', plan.plan_date, '', '', String(plan.active_attempt_id || ''), JSON.stringify({ sheet_name: plan.sheet_name, plan_date: plan.plan_date, scheduled_tasks: scheduledTasks, conflicts }), 'План дня обновлён через Quest Architect']] : [];\nreturn [{ json: { sheet_name: plan.sheet_name, plan_date: plan.plan_date, updates, conflicts, scheduled_count: updates.length, scheduled_tasks: scheduledTasks, game_log_rows: gameLogRows } }];"
+      },
+      "id": "b5609fd6-1ecd-4182-ab39-5f0399fe557f",
+      "name": "Build Daily Planner Writes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3568,
+        8912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-planner-updates",
+              "leftValue": "={{ Array.isArray($json.updates) && $json.updates.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9cd9a644-875b-49e4-bda3-317ea0222d73",
+      "name": "Has Planner Updates?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3808,
+        8912
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $json.updates }) }}",
+        "options": {}
+      },
+      "id": "50aee5f6-b42a-4379-a0c4-2468790d4315",
+      "name": "Update Daily Planner Grid",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4032,
+        8880
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Trigger').first().json;\nconst date = String(trigger.date || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'));\nconst sheet_name = date.slice(2).replace(/-/g, '.');\nconst quoted_sheet_name = `'${sheet_name.replace(/'/g, \"''\")}'`;\nconst task_name = String(trigger.task_name || '').trim();\nconst task_status = String(trigger.task_status || 'DONE').trim().toUpperCase();\nconst target_value = ['DONE', 'COMPLETED', 'TRUE'].includes(task_status);\nconst explicitHour = String(trigger.time_slot || '').trim();\nreturn [{ json: { date, sheet_name, quoted_sheet_name, task_name, task_status, target_value, time_slot: explicitHour } }];"
+      },
+      "id": "b7e3b5d3-2f56-4d90-9437-26ec9b0a983b",
+      "name": "Resolve Task Status Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        8784
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges={{ encodeURIComponent($('Resolve Task Status Input').first().json.quoted_sheet_name + '!F15:H50') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "id": "0f90f769-e1ac-42a5-8e52-5c4728b176e0",
+      "name": "Read Daily Planner Status Grid",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        8784
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Resolve Task Status Input').first().json;\nconst sheetRef = input.quoted_sheet_name || `'${String(input.sheet_name || '').replace(/'/g, \"''\")}'`;\nconst gridRaw = $('Read Daily Planner Status Grid').first().json || {};\nconst valueRanges = gridRaw.valueRanges || [];\nconst gridValues = (valueRanges[0] && valueRanges[0].values) || [];\nconst startRow = 15;\nfunction parseDisplayMinutes(label) {\n  const s = String(label || '').trim();\n  const match = s.match(/^(\\d{1,2}):(\\d{2})\\s*(AM|PM)$/i);\n  if (!match) return null;\n  let hour = parseInt(match[1], 10) % 12;\n  const minute = parseInt(match[2], 10);\n  if (String(match[3]).toUpperCase() === 'PM') hour += 12;\n  return hour * 60 + minute;\n}\nfunction parseExplicitMinutes(text) {\n  const s = String(text || '').trim();\n  let match = s.match(/\\b(1[0-2]|0?[1-9])(?::([0-5][0-9]))?\\s*(AM|PM)\\b/i);\n  if (match) {\n    let hour = parseInt(match[1], 10) % 12;\n    const minute = parseInt(match[2] || '0', 10);\n    if (String(match[3]).toUpperCase() === 'PM') hour += 12;\n    return hour * 60 + minute;\n  }\n  match = s.match(/\\b([01]?\\d|2[0-3])[:.]([0-5][0-9])\\b/);\n  if (match) return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);\n  match = s.match(/\\b([01]?\\d|2[0-3])\\b/);\n  if (match) return parseInt(match[1], 10) * 60;\n  return null;\n}\nconst slots = [];\nlet rollover = 0;\nlet previousBaseMinutes = null;\nfor (let i = 0; i < gridValues.length; i++) {\n  const rowVals = gridValues[i] || [];\n  const label = String(rowVals[0] || '').trim();\n  const baseMinutes = parseDisplayMinutes(label);\n  if (baseMinutes !== null && previousBaseMinutes !== null && baseMinutes < previousBaseMinutes) rollover += 1440;\n  if (baseMinutes !== null) previousBaseMinutes = baseMinutes;\n  slots.push({\n    row: startRow + i,\n    label,\n    minutes: baseMinutes === null ? null : baseMinutes + rollover,\n    task: String(rowVals[1] || '').trim()\n  });\n}\nfunction normalizeTask(text) {\n  return String(text || '').trim().toLowerCase();\n}\nlet targetRow = null;\nconst explicitMinutes = parseExplicitMinutes(input.time_slot || '');\nif (explicitMinutes !== null) {\n  const normalized = explicitMinutes < 7 * 60 ? explicitMinutes + 1440 : explicitMinutes;\n  const exact = slots.find(slot => slot.minutes === normalized);\n  const byTime = exact || slots.filter(slot => slot.minutes !== null).sort((a, b) => Math.abs(a.minutes - normalized) - Math.abs(b.minutes - normalized))[0];\n  if (byTime && (!input.task_name || normalizeTask(byTime.task) === normalizeTask(input.task_name))) {\n    targetRow = byTime.row;\n  }\n}\nif (!targetRow) {\n  const byName = slots.find(slot => slot.task && normalizeTask(slot.task) === normalizeTask(input.task_name));\n  if (byName) targetRow = byName.row;\n}\nconst found = !!targetRow;\nconst updates = found ? [{ range: `${sheetRef}!H${targetRow}`, values: [[input.target_value]] }] : [];\nconst message = found ? `✅ Статус задачи обновлён в daily planner: ${input.task_name}` : `⚠️ Не нашла задачу в daily planner: ${input.task_name}`;\nreturn [{ json: { ...input, found, updates, message } }];"
+      },
+      "id": "e1b973ef-8485-47d8-8ef5-52a98c6e91a9",
+      "name": "Build Task Status Write",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        8784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-task-status-update",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1f4a45c0-325b-4269-a41e-054b532534c6",
+      "name": "Has Task Status Update?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2880,
+        8784
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $json.updates }) }}",
+        "options": {}
+      },
+      "id": "55947ef9-71e5-45a6-bb5b-4066323040a4",
+      "name": "Update Task Status In Planner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3104,
+        8736
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "task-status-response",
+              "name": "response",
+              "value": "={{ (() => {\n  const parts = [];\n  try { parts.push($('Build Task List Status Update').first().json.message); } catch (e) {}\n  try {\n    const planner = $('Build Task Status Write').first().json || {};\n    if (planner.found) parts.push('📅 Daily planner обновлён.');\n    else if (planner.message) parts.push(planner.message);\n  } catch (e) {}\n  return parts.filter(Boolean).join('\\n\\n') || 'Сейчас не удалось подтвердить обновление статуса задачи. Попробуй еще раз.';\n})() }}",
+              "type": "string"
+            },
+            {
+              "id": "task-status-ok",
+              "name": "ok",
+              "value": "={{ (() => {\n  try { return !!$('Build Task List Status Update').first().json.found; } catch (e) { return false; }\n})() }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6307c05b-f9b1-46e3-8984-404efca6a783",
+      "name": "Return Task Status Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3328,
+        8784
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "habit-rule-found",
+              "leftValue": "={{ $json.rule_found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "57f5318c-bdda-4f62-a738-798a2bd0bb63",
+      "name": "Has Habit Rule?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2432,
+        8576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Trigger').first().json || {};\nconst raw = $input.first().json || {};\nconst ranges = Array.isArray(raw.valueRanges) ? raw.valueRanges : [];\nconst goalsValues = (ranges[0] && ranges[0].values) || [];\nconst snapshotValues = (ranges[1] && ranges[1].values) || [];\n\nconst clean = (value) => String(value ?? '').trim();\nconst toNumber = (value) => {\n  const s = clean(value).replace(/[^\\d.-]/g, '');\n  if (!s) return null;\n  const n = Number(s);\n  return Number.isFinite(n) ? n : null;\n};\nconst toBoolean = (value) => {\n  const s = clean(value).toLowerCase();\n  if (['true', 'yes', '1'].includes(s)) return true;\n  if (['false', 'no', '0'].includes(s)) return false;\n  return null;\n};\nconst normalizeText = (value) => clean(value).toLowerCase();\n\nconst activeGoals = goalsValues\n  .map((row, idx) => ({ slot: idx + 1, text: clean(row && row[0]) }))\n  .filter(item => item.text);\n\nconst cycleDay = toNumber(snapshotValues[0] && snapshotValues[0][1]);\nconst hpCurrent = toNumber(snapshotValues[2] && snapshotValues[2][0]);\nconst balanceThb = toNumber(snapshotValues[2] && snapshotValues[2][1]);\nconst xpTotal = toNumber(snapshotValues[4] && snapshotValues[4][0]);\nconst xpGold = toNumber(snapshotValues[4] && snapshotValues[4][1]);\nconst playerStage = clean(snapshotValues[6] && snapshotValues[6][0]) || 'EARLY';\nconst activeAttemptId = clean(snapshotValues[6] && snapshotValues[6][1]) || '';\nconst levelStartTs = clean(snapshotValues[8] && snapshotValues[8][0]);\nconst levelName = clean(snapshotValues[8] && snapshotValues[8][1]);\nconst totalProgress = toNumber(snapshotValues[10] && snapshotValues[10][0]);\nconst levelReady = toBoolean(snapshotValues[10] && snapshotValues[10][1]);\nconst moneyGrowthLevel = toNumber(snapshotValues[12] && snapshotValues[12][0]);\nconst questsDoneLevel = toNumber(snapshotValues[12] && snapshotValues[12][1]);\nconst debuffName = clean(snapshotValues[14] && snapshotValues[14][0]);\nconst bossName = clean(snapshotValues[14] && snapshotValues[14][1]);\n\nconst rawMode = clean(trigger.mode || 'TASK_CAPTURE').toUpperCase();\nconst msg = clean(trigger.user_input);\nconst msgNorm = normalizeText(msg);\nlet aiMode = rawMode;\nif (['TASK_CAPTURE'].includes(rawMode)) {\n  aiMode = /(разбей|разлож|подзадач|шаги|декомпоз)/i.test(msg) ? 'GOAL_DECOMPOSER' : 'TASK_CAPTURE';\n} else if (['MORNING', 'PLANNER', 'PLAN_DAY'].includes(rawMode)) {\n  aiMode = 'PLANNER';\n} else if (['EVENING', 'EVENING_REVIEW'].includes(rawMode)) {\n  aiMode = 'EVENING_REVIEW';\n} else if (['CLARITY', 'GOAL_DECOMPOSER'].includes(rawMode)) {\n  aiMode = 'GOAL_DECOMPOSER';\n} else if (['HABIT_LOG'].includes(rawMode)) {\n  aiMode = 'HABIT_LOG';\n}\n\nlet goalSlot = Number(clean(trigger.goal_slot));\nif (!Number.isInteger(goalSlot) || goalSlot < 1 || goalSlot > 10) goalSlot = null;\nconst explicitGoalText = clean(trigger.goal_text);\n\nif (!goalSlot && explicitGoalText) {\n  const matched = activeGoals.find(item => normalizeText(item.text) === normalizeText(explicitGoalText));\n  if (matched) goalSlot = matched.slot;\n}\nif (!goalSlot && aiMode === 'GOAL_DECOMPOSER') {\n  const matched = activeGoals.find(item => msgNorm && item.text && msgNorm.includes(normalizeText(item.text).slice(0, 12)));\n  if (matched) goalSlot = matched.slot;\n}\nif (!goalSlot && aiMode === 'GOAL_DECOMPOSER') {\n  goalSlot = activeGoals[0] ? activeGoals[0].slot : 1;\n}\n\nconst selectedGoal = explicitGoalText || (goalSlot && activeGoals.find(item => item.slot === goalSlot)?.text) || msg;\nconst activeGoalsSummary = activeGoals.map(item => `${item.slot}. ${item.text}`);\n\nreturn [{\n  json: {\n    raw_mode: rawMode,\n    mode: aiMode,\n    user_message: msg,\n    today_bkk: $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'),\n    hp_current: hpCurrent,\n    cycle_day: cycleDay,\n    player_stage: playerStage,\n    active_attempt_id: activeAttemptId,\n    level_name: levelName,\n    level_start_ts: levelStartTs,\n    total_progress: totalProgress,\n    level_ready: levelReady,\n    xp_total: xpTotal,\n    xp_gold: xpGold,\n    balance_thb: balanceThb,\n    money_growth_level: moneyGrowthLevel,\n    quests_done_level: questsDoneLevel,\n    debuff_name: debuffName,\n    boss_name: bossName,\n    goal_slot: goalSlot,\n    selected_goal: selectedGoal,\n    goal_deadline: clean(trigger.goal_deadline),\n    goal_reward: clean(trigger.goal_reward),\n    active_goals_summary: activeGoalsSummary,\n    task_candidates: [],\n    today_task_count: null,\n    overdue_task_count: null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        9040
+      ],
+      "id": "3d8884da-8fe2-4fbb-95a2-7984738719d9",
+      "name": "Build AI Context"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:Q:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: [[ $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss'), $json.event_type, 'QUEST_ARCHITECT', 'HABIT', $json.item_id, $json.rpg_name, $json.track, $json.status, $json.value, $json.resource_type, $json.delta, 'DAY', $json.date, '', '', '' ],...($json.hp_gain_delta > 0 ? [[ $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss'), 'HP_GAIN', 'QUEST_ARCHITECT', 'HABIT', $json.item_id, $json.rpg_name, $json.track, 'GAINED', $json.value, 'HP', String($json.hp_gain_delta), 'DAY', $json.date, '', '', '' ]] : [])] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2896,
+        8576
+      ],
+      "id": "1cccd07c-1045-42d3-b7cb-3f6887c4a4dc",
+      "name": "Append GAME_LOG (Habit)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-goal-writes",
+              "leftValue": "={{ $json.has_goal_writes }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3152,
+        9040
+      ],
+      "id": "e2f7f4e7-c294-4f41-afb4-a0d78aa2c7fa",
+      "name": "Has Goal Writes?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $json.goal_writes }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3408,
+        8960
+      ],
+      "id": "7c4e8fc3-c417-40c1-b09a-0732f4bfc4a3",
+      "name": "Update Goal Block",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=Task%20List!B7:Q1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3648,
+        9184
+      ],
+      "id": "9032735b-defe-45cd-81fe-302faa30ba3c",
+      "name": "Read Task List Occupancy",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Response').first().json || {};\nconst context = $('Build AI Context').first().json || {};\nconst taskRows = Array.isArray(parsed.task_rows) ? parsed.task_rows : [];\nconst raw = $input.first().json || {};\nconst values = (((raw.valueRanges || [])[0] || {}).values) || [];\nconst normalize = (value) => String(value || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/gi, ' ').trim();\nconst normBool = (value) => {\n  const s = String(value ?? '').trim().toLowerCase();\n  return ['true', 'yes', '1'].includes(s);\n};\nconst activeGoals = Array.isArray(context.active_goals_summary)\n  ? context.active_goals_summary.map(item => String(item || '').replace(/^\\d+\\.\\s*/, '').trim()).filter(Boolean)\n  : [];\nconst existingRows = values\n  .map((row, idx) => ({\n    row: idx + 7,\n    task: String((row || [])[0] || '').trim(),\n    normalized: normalize((row || [])[0] || ''),\n    xp_value: String((row || [])[1] || '').trim(),\n    recurring: normBool((row || [])[2]),\n    frequency: String((row || [])[3] || '').trim(),\n    start_date: String((row || [])[4] || '').trim(),\n    end_date: String((row || [])[5] || '').trim(),\n    due_date: String((row || [])[6] || '').trim(),\n    status: String((row || [])[8] || '').trim(),\n    category: String((row || [])[9] || '').trim(),\n    priority: String((row || [])[10] || '').trim(),\n    track: String((row || [])[11] || '').trim(),\n    important: normBool((row || [])[12]),\n    urgent: normBool((row || [])[13]),\n    notes: String((row || [])[14] || '').trim(),\n    task_id: String((row || [])[15] || '').trim(),\n  }))\n  .filter(item => item.task);\nconst occupiedTasks = new Map(existingRows.map(item => [item.normalized, item]));\nlet lastRow = 6;\nfor (const item of existingRows) {\n  if (item.task) lastRow = Math.max(lastRow, item.row);\n}\nlet nextRow = lastRow + 1;\nconst taskUpserts = [];\nconst createdRows = [];\nconst updatedRows = [];\nconst skippedGoalTitles = [];\nconst gameLogRows = [];\nconst nowTs = $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nconst attemptId = String(context.active_attempt_id || '').trim();\nconst stage = String(context.player_stage || 'EARLY').trim() || 'EARLY';\nconst levelName = String(context.level_name || '').trim();\nconst createTaskId = (title, rowHint) => {\n  const base = normalize(title).slice(0, 24) || 'task';\n  const hash = Array.from(`${base}|${rowHint}|${nowTs}`).reduce((acc, ch) => ((acc * 31) + ch.charCodeAt(0)) % 1000000007, 7);\n  return `task_${base.replace(/\\s+/g, '_')}_${hash}`;\n};\nfor (const task of taskRows) {\n  const normalizedTask = normalize(task.task);\n  if (!normalizedTask) continue;\n  if (activeGoals.some(goal => normalize(goal) === normalizedTask)) {\n    skippedGoalTitles.push(task.task);\n    continue;\n  }\n\n  const existing = occupiedTasks.get(normalizedTask);\n  const nextPayload = {\n    task: task.task,\n    xp_value: String(task.xp_value || ''),\n    recurring: !!task.recurring,\n    frequency: task.frequency || '',\n    start_date: task.start_date || '',\n    end_date: task.end_date || '',\n    due_date: task.due_date || '',\n    status: task.status,\n    category: task.category,\n    priority: task.priority,\n    track: task.track,\n    important: !!task.important,\n    urgent: !!task.urgent,\n    notes: task.notes || ''\n  };\n\n  if (existing) {\n    const changedFields = [];\n    for (const key of ['xp_value','recurring','frequency','start_date','end_date','due_date','status','category','priority','track','important','urgent','notes']) {\n      const oldVal = typeof existing[key] === 'boolean' ? existing[key] : String(existing[key] || '').trim();\n      const newVal = typeof nextPayload[key] === 'boolean' ? nextPayload[key] : String(nextPayload[key] || '').trim();\n      if (oldVal !== newVal) changedFields.push(key);\n    }\n    const taskId = existing.task_id || createTaskId(task.task, existing.row);\n    if (!changedFields.length && existing.task_id) continue;\n    const row = existing.row;\n    taskUpserts.push({\n      Task: task.task,\n      'XP| HP': task.xp_value,\n      'Recurring?': task.recurring,\n      Frequency: task.frequency || '',\n      'Start Date': task.start_date || '',\n      'End Date': task.end_date || '',\n      'Due Date': task.due_date || '',\n      Status: task.status,\n      Category: task.category,\n      Priority: task.priority,\n      Track: task.track,\n      'Important?': task.important,\n      'Urgent?': task.urgent,\n      Notes: task.notes || '',\n      TASK_ID: taskId,\n      target_row: row,\n    });\n    updatedRows.push({ row, task: task.task, task_id: taskId, changed_fields: changedFields });\n    gameLogRows.push([nowTs, 'TASK_UPDATED', 'QUEST_ARCHITECT', 'TASK', taskId, task.task, task.track, task.status, String(task.xp_value || ''), 'TASK', '', task.recurring ? (task.frequency || '') : '', task.due_date || task.start_date || context.today_bkk || '', stage, levelName, attemptId, JSON.stringify({ row, task_id: taskId, changed_fields: changedFields, category: task.category, priority: task.priority, recurring: task.recurring, important: task.important, urgent: task.urgent }), 'Task обновлена через Quest Architect']);\n    continue;\n  }\n\n  const row = nextRow++;\n  const taskId = createTaskId(task.task, row);\n  occupiedTasks.set(normalizedTask, { row, normalized: normalizedTask, task_id: taskId, ...nextPayload });\n  taskUpserts.push({\n    Task: task.task,\n    'XP| HP': task.xp_value,\n    'Recurring?': task.recurring,\n    Frequency: task.frequency || '',\n    'Start Date': task.start_date || '',\n    'End Date': task.end_date || '',\n    'Due Date': task.due_date || '',\n    Status: task.status,\n    Category: task.category,\n    Priority: task.priority,\n    Track: task.track,\n    'Important?': task.important,\n    'Urgent?': task.urgent,\n    Notes: task.notes || '',\n    TASK_ID: taskId,\n    target_row: row,\n  });\n  createdRows.push({ row, task: task.task, task_id: taskId, due_date: task.due_date || '', start_date: task.start_date || '' });\n  gameLogRows.push([nowTs, 'TASK_CREATED', 'QUEST_ARCHITECT', 'TASK', taskId, task.task, task.track, task.status, String(task.xp_value || ''), 'TASK', '', task.recurring ? (task.frequency || '') : '', task.due_date || task.start_date || context.today_bkk || '', stage, levelName, attemptId, JSON.stringify({ row, task_id: taskId, category: task.category, priority: task.priority, recurring: task.recurring, important: task.important, urgent: task.urgent }), 'Task создана через Quest Architect']);\n}\nreturn [{ json: { task_upserts: taskUpserts, created_rows: createdRows, created_count: createdRows.length, updated_rows: updatedRows, updated_count: updatedRows.length, skipped_goal_titles: skippedGoalTitles, game_log_rows: gameLogRows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3872,
+        9184
+      ],
+      "id": "94d889e7-e361-43f3-8ca0-56dac04d4f40",
+      "name": "Build Task List Writes"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4",
+          "mode": "list",
+          "cachedResultName": "Task Tracker and To-Do List Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Task List",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Task": "={{ $json.Task }}",
+            "XP| HP": "={{ $json['XP| HP'] }}",
+            "Recurring?": "={{ $json['Recurring?'] }}",
+            "Frequency": "={{ $json.Frequency }}",
+            "Start Date": "={{ $json['Start Date'] }}",
+            "End Date": "={{ $json['End Date'] }}",
+            "Due Date": "={{ $json['Due Date'] }}",
+            "Status": "={{ $json.Status }}",
+            "Category": "={{ $json.Category }}",
+            "Priority": "={{ $json.Priority }}",
+            "Track": "={{ $json.Track }}",
+            "Important?": "={{ $json['Important?'] }}",
+            "Urgent?": "={{ $json['Urgent?'] }}",
+            "Notes": "={{ $json.Notes }}",
+            "TASK_ID": "={{ $json.TASK_ID }}"
+          },
+          "matchingColumns": [
+            "TASK_ID"
+          ],
+          "schema": [
+            {
+              "id": "Task",
+              "displayName": "Task",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "XP| HP",
+              "displayName": "XP| HP",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recurring?",
+              "displayName": "Recurring?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Frequency",
+              "displayName": "Frequency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Start Date",
+              "displayName": "Start Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "End Date",
+              "displayName": "End Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Track",
+              "displayName": "Track",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Important?",
+              "displayName": "Important?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Urgent?",
+              "displayName": "Urgent?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TASK_ID",
+              "displayName": "TASK_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefine": {
+            "values": {
+              "firstDataRow": "={{ $json.target_row }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4544,
+        9184
+      ],
+      "id": "387be011-2533-458c-9567-6c032387bdd0",
+      "name": "Update Task List Rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchGet?ranges=Task%20List!B7:Q1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2880,
+        8656
+      ],
+      "id": "2c19dcec-f421-4a20-a6f5-652f26bf8617",
+      "name": "Read Task List Status Rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Resolve Task Status Input').first().json;\nconst raw = $input.first().json || {};\nconst rows = (((raw.valueRanges || [])[0] || {}).values) || [];\nconst targetName = String(input.task_name || '').trim().toLowerCase();\nconst isoDate = String(input.date || '').trim();\nconst statusMap = {\n  DONE: '✅ Completed',\n  COMPLETED: '✅ Completed',\n  IN_PROGRESS: '🔄 In Progress',\n  PENDING: '⏳ Pending',\n  HOLD: '✋ On Hold',\n  ON_HOLD: '✋ On Hold',\n  DELAYED: '🛑 Delayed',\n  OVERDUE: '⚠️ Overdue',\n  REVIEW: '🔍 Under Review',\n  UNDER_REVIEW: '🔍 Under Review',\n  CANCELED: '🚫 Canceled',\n  CANCELLED: '🚫 Canceled'\n};\nfunction toIso(value) {\n  const s = String(value || '').trim();\n  if (!s) return '';\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const us = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (us) return `${us[3]}-${String(us[1]).padStart(2, '0')}-${String(us[2]).padStart(2, '0')}`;\n  return '';\n}\nlet foundRow = null;\nlet foundTaskId = '';\nfor (let i = rows.length - 1; i >= 0; i--) {\n  const row = rows[i] || [];\n  const name = String(row[0] || '').trim().toLowerCase();\n  if (!name || name !== targetName) continue;\n  const startDate = toIso(row[4]);\n  const dueDate = toIso(row[6]);\n  if (!isoDate || isoDate === startDate || isoDate === dueDate) {\n    foundRow = i + 7;\n    foundTaskId = String(row[15] || '').trim();\n    break;\n  }\n  if (foundRow === null) foundRow = i + 7;\n}\nconst found = Number.isInteger(foundRow);\nconst finalStatus = statusMap[String(input.task_status || '').trim().toUpperCase()] || '✅ Completed';\nconst updates = found ? [{ range: `Task List!J${foundRow}`, values: [[finalStatus]] }] : [];\nconst nowTs = $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd HH:mm:ss');\nconst gameLogRows = [];\nif (found && finalStatus === '✅ Completed') {\n  updates.push({ range: `Task List!G${foundRow}`, values: [[input.date]] });\n}\nif (found) {\n  const eventType = finalStatus === '✅ Completed' ? 'TASK_COMPLETED' : 'TASK_STATUS_CHANGED';\n  gameLogRows.push([nowTs, eventType, 'QUEST_ARCHITECT', 'TASK', foundTaskId || String(foundRow), input.task_name, '', finalStatus, '', 'TASK', '', '', input.date || $now.setZone('Asia/Bangkok').toFormat('yyyy-MM-dd'), '', '', '', JSON.stringify({ row: foundRow, task_id: foundTaskId || '', final_status: finalStatus }), 'Статус задачи обновлён через Quest Architect']);\n}\nconst message = found\n  ? `✅ Статус обновлён в Task List: ${input.task_name}`\n  : `⚠️ Не нашла задачу в Task List: ${input.task_name}`;\nreturn [{ json: { found, updates, message, final_status: finalStatus, game_log_rows: gameLogRows } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        8656
+      ],
+      "id": "e7e328dc-46e2-4530-bb31-5c90a0a667bf",
+      "name": "Build Task List Status Update"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "task-list-status-update",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3360,
+        8656
+      ],
+      "id": "29a81126-7255-4035-9a16-af27c6060f39",
+      "name": "Has Task List Status Update?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ valueInputOption: 'USER_ENTERED', data: $json.updates }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3600,
+        8656
+      ],
+      "id": "4496afea-f6e1-48da-8cbe-c0cdf5a704c6",
+      "name": "Update Task Status In Task List",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "run-planner-even-without-new-tasks",
+              "leftValue": "={{ $json.mode === \"PLANNER\" }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4b8b9a8a-5a73-4a78-bc2d-0a4aa1aa1aa1",
+      "name": "Should Fill Planner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3600,
+        9280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Parse Response').first().json.goal_game_log_rows || [] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3648,
+        8960
+      ],
+      "id": "d20b8955-6cd2-4da1-a531-39aaf983b798",
+      "name": "Append GAME_LOG (Goal)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Task List Writes').first().json.game_log_rows || [] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4320,
+        9184
+      ],
+      "id": "4421202c-ffad-4650-8bf4-9a3f71eb2e66",
+      "name": "Append GAME_LOG (Task Create)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Task List Status Update').first().json.game_log_rows || [] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3840,
+        8656
+      ],
+      "id": "b86ce295-10d8-465d-b23d-e2eed3540120",
+      "name": "Append GAME_LOG (Task Status)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://sheets.googleapis.com/v4/spreadsheets/1Dd0BJfB2YwEC5rY90TXvSWPtKQDVav32x0McNKOr-U4/values/GAME_LOG!B:S:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ values: $('Build Daily Planner Writes').first().json.game_log_rows || [] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4272,
+        8880
+      ],
+      "id": "36a97bf9-5af8-44a8-9a1c-fdbc88868215",
+      "name": "Append GAME_LOG (Planner)",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KuE7Ppvk6dcjfKNu",
+          "name": "alinavlada86 Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "task-upserts-present",
+              "leftValue": "={{ Array.isArray($json.task_upserts) && $json.task_upserts.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4096,
+        9056
+      ],
+      "id": "0b6478a3-2f93-4df3-8e9e-2c70d843f8c2",
+      "name": "Has Task Upserts?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json || {};\nconst upserts = Array.isArray(summary.task_upserts) ? summary.task_upserts : [];\nreturn upserts.map((item) => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4320,
+        9184
+      ],
+      "id": "5d0df24f-91c0-4a45-89a8-8d3383f28c2e",
+      "name": "Expand Task List Upserts"
+    }
+  ],
+  "pinData": {
+    "Trigger": [
+      {
+        "json": {
+          "mode": "MANUAL",
+          "user_input": "Записать, что вчера с 9.00 до 10.00 я занималась секретуткой, с 10 до 13 - каршерингом, с 13 до 16 - секретуткой",
+          "user_id": 145771888,
+          "item_id": null,
+          "value": null,
+          "date": null,
+          "status": null,
+          "task_name": null,
+          "task_status": null,
+          "time_slot": null
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "If Habit Mode?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Habit Mode?": {
+      "main": [
+        [
+          {
+            "node": "Read GAME_RULES (Quest)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Task Status Mode?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read GAME_RULES (Quest)": {
+      "main": [
+        [
+          {
+            "node": "Calc Habit Logic (Quest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc Habit Logic (Quest)": {
+      "main": [
+        [
+          {
+            "node": "Has Habit Rule?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Habit Rule?": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG (Habit)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Habit Result (Quest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG (Habit)": {
+      "main": [
+        [
+          {
+            "node": "Return Habit Result (Quest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Task Status Mode?": {
+      "main": [
+        [
+          {
+            "node": "Resolve Task Status Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read PROFILE_GAME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Task Status Input": {
+      "main": [
+        [
+          {
+            "node": "Read Daily Planner Status Grid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Daily Planner Status Grid": {
+      "main": [
+        [
+          {
+            "node": "Build Task Status Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task Status Write": {
+      "main": [
+        [
+          {
+            "node": "Read Task List Status Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Task List Status Rows": {
+      "main": [
+        [
+          {
+            "node": "Build Task List Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task List Status Update": {
+      "main": [
+        [
+          {
+            "node": "Has Task List Status Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Task List Status Update?": {
+      "main": [
+        [
+          {
+            "node": "Update Task Status In Task List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Task Status Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Task Status In Task List": {
+      "main": [
+        [
+          {
+            "node": "Has Task Status Update?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append GAME_LOG (Task Status)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Task Status Update?": {
+      "main": [
+        [
+          {
+            "node": "Update Task Status In Planner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Task Status Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Task Status In Planner": {
+      "main": [
+        [
+          {
+            "node": "Return Task Status Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read PROFILE_GAME": {
+      "main": [
+        [
+          {
+            "node": "Build AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Context": {
+      "main": [
+        [
+          {
+            "node": "Quest Architect Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Quest Architect Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quest Architect Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Has Goal Writes?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Goal Writes?": {
+      "main": [
+        [
+          {
+            "node": "Update Goal Block",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Has Tasks?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Goal Block": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG (Goal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Tasks?": {
+      "main": [
+        [
+          {
+            "node": "Read Task List Occupancy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Should Fill Planner?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Task List Occupancy": {
+      "main": [
+        [
+          {
+            "node": "Build Task List Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task List Writes": {
+      "main": [
+        [
+          {
+            "node": "Has Task Upserts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Task List Rows": {
+      "main": [
+        []
+      ]
+    },
+    "Resolve Plan Date": {
+      "main": [
+        [
+          {
+            "node": "Read Task List For Day",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Daily Planner Grid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Daily Planner Grid": {
+      "main": [
+        [
+          {
+            "node": "Build Daily Planner Writes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Daily Planner Writes": {
+      "main": [
+        [
+          {
+            "node": "Has Planner Updates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Planner Updates?": {
+      "main": [
+        [
+          {
+            "node": "Update Daily Planner Grid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Daily Planner Grid": {
+      "main": [
+        [
+          {
+            "node": "Append GAME_LOG (Planner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Fill Planner?": {
+      "main": [
+        [
+          {
+            "node": "Resolve Plan Date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG (Goal)": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG (Task Create)": {
+      "main": [
+        [
+          {
+            "node": "Resolve Plan Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG (Task Status)": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append GAME_LOG (Planner)": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Task Upserts?": {
+      "main": [
+        [
+          {
+            "node": "Expand Task List Upserts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append GAME_LOG (Task Create)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Expand Task List Upserts": {
+      "main": [
+        [
+          {
+            "node": "Update Task List Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Bangkok",
+    "binaryMode": "separate"
+  },
+  "versionId": "22fdf06a-e83a-46ad-aabe-7de32a13505c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3955fb8ab8e1b8d4729a842094797e4ecce3a7802d966240b3aa9311750b0e5c"
+  },
+  "id": "bVNR2xmUUo_m1_PB7382n",
+  "tags": [
+    {
+      "updatedAt": "2026-04-06T12:46:05.514Z",
+      "createdAt": "2026-04-06T12:46:05.514Z",
+      "id": "A2QGaP05ISQC5j48",
+      "name": "sekretutka"
+    }
+  ]
+}

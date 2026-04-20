@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sekretutka — Architecture v5 (Secondary Reference)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,Arial,sans-serif;background:radial-gradient(circle at top,#1b2240 0%,#10131c 40%,#0b0d12 100%);color:#e8edf8}
+.shell{width:min(1400px,calc(100% - 40px));margin:24px auto 56px}
+.hero,.card,.table-wrap,.note,.mechanic,.pill{background:linear-gradient(180deg,rgba(24,31,48,.96),rgba(18,23,35,.96));border:1px solid rgba(136,160,255,.12);border-radius:20px;box-shadow:0 14px 40px rgba(0,0,0,.18)}
+.hero{padding:40px 42px}
+.eyebrow{display:inline-block;padding:7px 12px;border-radius:999px;background:rgba(123,158,255,.10);border:1px solid rgba(123,158,255,.15);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#bfd0ff;margin-bottom:18px}
+h1{font-size:clamp(34px,4.3vw,58px);line-height:.95;letter-spacing:-.04em;margin-bottom:14px}
+.hero p{max-width:74ch;color:#a7b4cd;line-height:1.7}
+.hero-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:start}
+.hero-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.metric{padding:18px;border-radius:18px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)}
+.metric .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#96a8d0;margin-bottom:8px}
+.metric strong{display:block;font-size:18px;color:#fff;margin-bottom:6px}
+.metric span{font-size:13px;color:#9eacc8;line-height:1.6}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 22px}
+.tab{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);cursor:pointer;color:#aebce0;font-size:13px}
+.tab.active{background:rgba(123,158,255,.16);border-color:rgba(123,158,255,.28);color:#fff}
+.panel{display:none}
+.panel.active{display:block}
+.section{margin-bottom:22px}
+.section h2{font-size:24px;margin-bottom:14px}
+.section p,.section li{color:#b4bfd6;line-height:1.72}
+.grid-2,.grid-3{display:grid;gap:16px}
+.grid-2{grid-template-columns:1.1fr .9fr}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.card{padding:22px}
+.card h3{font-size:17px;margin-bottom:10px;color:#fff}
+.card ul{padding-left:18px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left;vertical-align:top}
+th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9cb0d7;background:rgba(123,158,255,.08)}
+code{background:#252d42;color:#f7d66c;padding:1px 6px;border-radius:4px;font-size:12px}
+.mermaid-wrap{padding:26px}
+.mermaid{min-width:980px}
+.mechanic{padding:20px}
+.mechanic h3{margin-bottom:10px;color:#ffe08b}
+.formula{margin-top:10px;padding:14px 16px;border-radius:12px;background:#0f1320;border:1px solid rgba(255,255,255,.06);font-family:ui-monospace,Menlo,monospace;color:#8fe3b2;white-space:pre-wrap}
+.pill{padding:14px 16px}
+.pill strong{display:block;color:#fff;margin-bottom:6px}
+@media (max-width: 980px){
+  .shell{width:min(100% - 24px,1400px);margin:12px auto 32px}
+  .hero{padding:26px}
+  .hero-grid,.grid-2,.grid-3,.hero-cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <div class="eyebrow">Architecture Update · April 2026</div>
+    <div class="hero-grid">
+      <div>
+        <h1>Sekretutka Architecture v5</h1>
+        <p>Этот документ сейчас вторичен по отношению к `PRD + README + CRM`. Целевая модель: `GAME_RULES` хранит реестр правил и player-authored declarations, `GAME_LOG` хранит историю событий, а `PROFILE_GAME` остается гибридным листом goals + decomposition + snapshot + runtime block.</p>
+      </div>
+      <div class="hero-cards">
+        <div class="metric">
+          <div class="k">Rules</div>
+          <strong>`GAME_RULES` = мир игры</strong>
+          <span>Системные законы, option sets, transition rules, attempt rules и выбранные игроком декларации лежат в одном месте.</span>
+        </div>
+        <div class="metric">
+          <div class="k">History</div>
+          <strong>`GAME_LOG` = история</strong>
+          <span>Все изменения, награды, дебаффы, попытки и player-declaration events пишутся в единый журнал.</span>
+        </div>
+        <div class="metric">
+          <div class="k">Snapshot</div>
+          <strong>`PROFILE_GAME` = goals + snapshot</strong>
+          <span>Канонически это гибридный лист: top goals, decomposition zone, актуальные значения игрока, readiness-формулы и нижний технический блок для workflow.</span>
+        </div>
+        <div class="metric">
+          <div class="k">Views</div>
+          <strong>`Dashboard` и planners = витрины</strong>
+          <span>Task analytics, daily planner и weekly planner показывают данные, но не становятся источниками правды.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="sw('map', event)">🗺️ Карта</div>
+    <div class="tab" onclick="sw('sheets', event)">📊 Листы</div>
+    <div class="tab" onclick="sw('game', event)">🎮 Механика</div>
+    <div class="tab" onclick="sw('flows', event)">⚙️ Workflow</div>
+  </div>
+
+  <div id="panel-map" class="panel active">
+    <div class="section">
+      <div class="mermaid-wrap card">
+        <div class="mermaid">
+flowchart TD
+  TG["📱 Telegram"]:::tg --> MAIN["Main workflow\nчестный маршрутизатор"]:::wf
+  MAIN --> QUEST["Quest Architect\nзадачи + decomposition + daily planner"]:::wf
+  MAIN --> FIN["Finance workflow"]:::wf
+  MAIN --> BELIEF["Belief / therapist workflow"]:::wf
+  MAIN --> RULES_WF["Game Rules / onboarding workflow"]:::wf
+  MAIN --> PROMO["/start + promo text\nbutton: Переход к настройке"]:::wf
+
+  RULES_WF --> RULES["GAME_RULES\nреестр правил и player declarations"]:::sheet
+  QUEST --> TASKS["Task List\nисточник правды по задачам"]:::sheet
+  QUEST --> LOG["GAME_LOG\nединый журнал событий"]:::sheet
+  RULES_WF --> LOG
+  QUEST --> DAILY["Daily sheets\nпредставление по дате"]:::sheet
+  DAILY --> WEEKLY["Weekly planner\nформулы из daily"]:::sheet
+  MAIN --> PROFILE["PROFILE_GAME\ngoals + snapshot + runtime block"]:::sheet
+  PROFILE --> DASH["Dashboard\nвитрина задач и аналитики"]:::sheet
+  TASKS --> DASH
+  LOG --> PROFILE
+  TASKS --> DAILY
+  RULES --> PROFILE
+
+  classDef tg fill:#173f72,stroke:#63b3ed,color:#d8f0ff
+  classDef wf fill:#342060,stroke:#a78bfa,color:#f0e8ff
+  classDef sheet fill:#1e4731,stroke:#68d391,color:#d9ffe7
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3 section">
+      <div class="pill"><strong>Один реестр правил</strong><span>`STAGE_RULES` больше не нужен как отдельный лист: stage, level, sprint и attempts rules живут в `GAME_RULES`.</span></div>
+      <div class="pill"><strong>Один журнал событий</strong><span>Старые `KPI&HABBIT_LOG`, `RESOURCE_LOG & BOSS_LOG` и отдельные attempt-логи считаются legacy; активный event layer системы — `GAME_LOG`.</span></div>
+      <div class="pill"><strong>Один hybrid-лист</strong><span>`PROFILE_GAME` не хранит правила мира, но канонически совмещает top goals, decomposition, snapshot и runtime block.</span></div>
+      <div class="pill"><strong>Вход через промо</strong><span>`/start` и первый вход без правил открывают игру промо-текстом. Второй ответ игрока ведет в `ONBOARDING_INTRO`, а дальше FSM идет по микрошагам `1 вопрос = 1 ответ`.</span></div>
+    </div>
+  </div>
+
+  <div id="panel-sheets" class="panel">
+    <div class="section">
+      <h2>Целевые листы и колонки</h2>
+      <div class="table-wrap card">
+        <table>
+          <thead>
+            <tr>
+              <th>Лист</th>
+              <th>Роль</th>
+              <th>Колонки / блоки</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>PROFILE_GAME</code></td>
+              <td>Goals + decomposition + snapshot игрока + нижний service/runtime block</td>
+              <td><code>STATE_TIMESTAMP</code>, <code>USER_ID</code>, <code>CURRENT_STATE</code>, <code>CYCLE_DAY</code>, <code>CYCLE_MODIFIER</code>, <code>HP_CURRENT</code>, <code>HP_MAX</code>, <code>XP_TOTAL</code>, <code>XP_GOLD</code>, <code>BALANCE_THB</code>, <code>DEBUFF_NAME</code>, <code>DEBUFF_EXPIRES</code>, <code>PLAYER_STAGE</code>, <code>LEVEL_NAME</code>, <code>LEVEL_START_TS</code>, <code>ACTIVE_ATTEMPT_ID</code>, <code>TREASURE_HORIZON_DAYS</code>, <code>SPRINT_DAYS</code>, <code>RISK_MODE</code>, <code>XP_AT_LEVEL_START</code>, <code>MONEY_GROWTH_LEVEL</code>, <code>QUESTS_DONE_LEVEL</code>, <code>BELIEFS_FROM_LEVEL_START</code>, <code>TOTAL_PROGRESS</code>, <code>LEVEL_READY</code>, <code>IS_DATA_STALE</code>, bio-поля; goal zone и decomposition zone живут в этом же листе; ниже: <code>run_mode</code>, <code>now_ts</code>, <code>today_date</code>, <code>yesterday_date</code>, <code>telegram_text</code>, <code>debug</code> и другие service keys.</td>
+            </tr>
+            <tr>
+              <td><code>GAME_RULES</code></td>
+              <td>Единый реестр правил, option sets и player-authored declarations</td>
+              <td><code>CREATED_TS</code>, <code>UPDATED_TS</code>, <code>ACTIVE</code>, <code>RULE_GROUP</code>, <code>TYPE</code>, <code>ID_NAME</code>, <code>RPG_NAME</code>, <code>TRACK</code>, <code>OPTION_GROUP</code>, <code>RESOURCE_TYPE</code>, <code>VALUE</code>, <code>TARGET_VALUE</code>, <code>PERIOD</code>, <code>TARGET_JSON</code>, <code>EFFECT</code>, <code>EFFECT_TARGET</code>, <code>FORMULA_TEXT</code>, <code>FLAVOR_TEXT</code>, <code>DESC</code>, <code>SOURCE</code>, <code>SORT_ORDER</code>, <code>NOTES</code>.</td>
+            </tr>
+            <tr>
+              <td><code>GAME_LOG</code></td>
+              <td>Единая история событий</td>
+              <td><code>EVENT_TS</code>, <code>EVENT_TYPE</code>, <code>ENTITY_GROUP</code>, <code>ENTITY_TYPE</code>, <code>ENTITY_ID</code>, <code>ENTITY_NAME</code>, <code>TRACK</code>, <code>STATUS</code>, <code>RESOURCE_TYPE</code>, <code>DELTA</code>, <code>VALUE</code>, <code>PERIOD</code>, <code>LEVEL_AT_TIME</code>, <code>STAGE_AT_TIME</code>, <code>ATTEMPT_ID</code>, <code>SOURCE_WORKFLOW</code>, <code>CONTEXT_JSON</code>, <code>COMMENT</code>.</td>
+            </tr>
+            <tr>
+              <td><code>Task List</code></td>
+              <td>Единственный источник правды по задачам</td>
+              <td>Текущая карточка задачи сохраняется. Daily planner выбирает задачу по правилу: <code>Due Date</code>, иначе <code>Start Date</code>.</td>
+            </tr>
+            <tr>
+              <td><code>Dashboard</code></td>
+              <td>Витрина задач и аналитики</td>
+              <td>Показывает total / recurring / one-time / ongoing / completed / overdue tasks, today’s tasks, upcoming deadlines, category / status / priority breakdown, workload distribution и decision-matrix прогресс.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2 section">
+      <div class="card">
+        <h3>Что живёт только в `PROFILE_GAME`</h3>
+        <ul>
+          <li>top goals и decomposition zone;</li>
+          <li>текущие активные значения игрока;</li>
+          <li>формулы readiness и прогрессии;</li>
+          <li>живой snapshot stage / level / risk / sprint;</li>
+          <li>нижний технический блок для engine и n8n.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Что больше не нужно дублировать в `PROFILE_GAME`</h3>
+        <ul>
+          <li>task counters и dashboard analytics;</li>
+          <li>today / upcoming / completed lists;</li>
+          <li>status / category / priority breakdown;</li>
+          <li>отдельный лист `STAGE_RULES`.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-game" class="panel">
+    <div class="grid-2 section">
+      <div class="mechanic">
+        <h3>Игрок сам пишет себе правила игры</h3>
+        <p>Во время онбординга и дальнейшей настройки игрок создаёт не просто профильные значения, а player-authored declarations в <code>GAME_RULES</code>. Snapshot `PROFILE_GAME` собирается из формул и runtime-логики, а история изменений живет в <code>GAME_LOG</code>.</p>
+      </div>
+      <div class="mechanic">
+        <h3>Player declarations в `GAME_RULES`</h3>
+        <p>Система хранит в одном месте:</p>
+        <ul>
+          <li><code>TREASURE</code></li>
+          <li>выбранный <code>TREASURE_TYPE</code></li>
+          <li>выбранный <code>RISK_MODE</code></li>
+          <li>тактические player-authored declarations и level naming rules</li>
+          <li>выбранный <code>SPRINT_DAYS</code></li>
+          <li>выбранный <code>TREASURE_HORIZON_DAYS</code></li>
+          <li>рамки и правила <code>ATTEMPTS</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mechanic section">
+      <h3>Основные законы игры</h3>
+      <div class="formula">Level = накопленный прирост запаса +1 000 000 THB с момента LEVEL_START_TS
+Player Status = XP_TOTAL
+TOTAL_PROGRESS = 0.4×(Money_Growth/1 000 000)
+               + 0.3×(Done_Tasks/90)
+               + 0.2×(XP_from_level_start/5000)
+               + 0.1×(Beliefs_Count/3)
+LEVEL_READY = TRUE, если TOTAL_PROGRESS >= 1.0 и запас THB >= 1 000 000</div>
+    </div>
+
+    <div class="grid-3 section">
+      <div class="card">
+        <h3>Bio-Layer</h3>
+        <p>Это слой HP, цикла и recovery-режимов. Он накладывается поверх Game-layer: при низком HP нельзя просто “взять себя в руки”, а работа и сама игра возможны только при энергии.</p>
+      </div>
+      <div class="card">
+        <h3>Stage</h3>
+        <p>Stage не назначается игроком. Система автоматически считает его внутри текущего attempt по прогрессу `XP_TOTAL` от точки старта attempt.</p>
+      </div>
+      <div class="card">
+        <h3>Attempts</h3>
+        <p>Attempt — это период консистентного присутствия в игре. Он стартует после онбординга, падает после 5 дней тишины и полностью фиксируется через `GAME_LOG`.</p>
+      </div>
+    </div>
+
+    <div class="grid-3 section">
+      <div class="card">
+        <h3>Recovery Modes</h3>
+        <ul>
+          <li><code>NORMAL</code>: `HP &gt;= 100`</li>
+          <li><code>RECOVERY_ACTIVE</code>: `HP &lt; 60`</li>
+          <li><code>RECOVERY_PASSIVE</code>: `HP &lt; 30`</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Task Tracks</h3>
+        <ul>
+          <li><code>Craft</code>: деньги, опыт, дело, навык</li>
+          <li><code>Social</code>: отношения, поддержка, влияние</li>
+          <li><code>Vitality</code>: тело, здоровье, восстановление</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Onboarding Order</h3>
+        <p>После промо идут `ONBOARDING_INTRO`, bio/reality-калибровка, спринт, задачи по трекам, привычки, KPI, цель, боссы, recovery-rules, shop и только потом контракт.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-flows" class="panel">
+    <div class="section">
+      <h2>Как это работает в runtime</h2>
+      <div class="table-wrap card">
+        <table>
+          <thead>
+            <tr>
+              <th>Workflow</th>
+              <th>Что читает</th>
+              <th>Что пишет</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Main</strong></td>
+              <td>`PROFILE_GAME`, task context</td>
+              <td>ничего напрямую; только маршрутизирует и честно возвращает результат</td>
+            </tr>
+            <tr>
+              <td><strong>Quest Architect</strong></td>
+              <td>`PROFILE_GAME`, `Task List`, часть `GAME_RULES` по необходимости</td>
+              <td>`Task List`, `GAME_LOG`, daily sheets</td>
+            </tr>
+            <tr>
+              <td><strong>Game Rules / onboarding</strong></td>
+              <td>`GAME_RULES`, `GAME_LOG`, `PROFILE_GAME` runtime block</td>
+              <td>`GAME_RULES`, `GAME_LOG`</td>
+            </tr>
+            <tr>
+              <td><strong>ENGINE</strong></td>
+              <td>`PROFILE_GAME`, `GAME_LOG`, `Task List`, planners</td>
+              <td>runtime block в `PROFILE_GAME`, сообщения, системные обновления, weekly setup</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2 section">
+      <div class="card">
+        <h3>Когда меняется player declaration</h3>
+        <ul>
+          <li>workflow обновляет/создаёт запись в <code>GAME_RULES</code>;</li>
+          <li>обновляет текущее значение в <code>PROFILE_GAME</code> только если это runtime snapshot, а не player-authored rule;</li>
+          <li>добавляет событие в <code>GAME_LOG</code>.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Какие события фиксируются в `GAME_LOG`</h3>
+        <ul>
+          <li><code>TREASURE_SET</code></li>
+          <li><code>TREASURE_UPDATED</code></li>
+          <li><code>SPRINT_DAYS_CHANGED</code></li>
+          <li><code>RISK_MODE_CHANGED</code></li>
+          <li><code>PLAYER_STAGE_CHANGED</code></li>
+          <li><code>LEVEL_NAME_CHANGED</code></li>
+          <li><code>ATTEMPT_STARTED</code></li>
+          <li><code>ATTEMPT_FINISHED</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+mermaid.initialize({startOnLoad:true, theme:'dark'});
+function sw(id, ev){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  ev.currentTarget.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+}
+</script>
+</body>
+</html>
