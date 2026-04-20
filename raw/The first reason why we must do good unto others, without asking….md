@@ -1,0 +1,1 @@
+Hadot, Pierre. The Inner Citadel the Meditations of Marcus Aurelius. Harvard Univ. Press, 2001.

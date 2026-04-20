@@ -1,0 +1,1 @@
+https://maps.app.goo.gl/i4v8dYnfhPgRuNSYA - магазин косметики тай
