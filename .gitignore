@@ -1,0 +1,13 @@
+.DS_Store
+.obsidian/workspace*.json
+.obsidian/cache
+.obsidian/workspace.json
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.pdf
+*.epub
+*.docx
+*.pages
+*.crdownload
